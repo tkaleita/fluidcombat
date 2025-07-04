@@ -7,6 +7,10 @@ dependencies {
     // Puzzles Lib
     modApi libs.puzzleslib.fabric
 
+    modApi("net.fabricmc:fabric-loader:0.16.14") {
+        because("Overriding default loader version")
+    }
+
     // Reach Entity Attributes
 //    modApi(include(libs.reachentityattributes.fabric.get()))
 }
