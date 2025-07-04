@@ -9,6 +9,7 @@ public class FabricAbstractions implements CommonAbstractions {
 
     @Override
     public AABB getSweepHitBox(Player player, Entity target) {
-        return target.getBoundingBox().inflate(1.0, 0.25, 1.0);
+        var hitbox = target.getBoundingBox().inflate(1.0, 0.25, 1.0);
+        return hitbox;
     }
 }

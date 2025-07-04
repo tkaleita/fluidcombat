@@ -21,7 +21,7 @@ public class CustomSweepParticle extends TextureSheetParticle {
         this.zd = 0.0;
         this.quadSize = 1.0F; // Try values between 0.5F and 2.0F
         this.lifetime = 3;
-        this.alpha = 0.75f;
+        this.alpha = 0.85f;
         this.hasPhysics = false;
 
         // fixed brightness
