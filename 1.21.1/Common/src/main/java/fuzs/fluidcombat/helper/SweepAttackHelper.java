@@ -22,6 +22,8 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.boss.EnderDragonPart;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -62,28 +64,33 @@ public class SweepAttackHelper {
         player.swing(InteractionHand.MAIN_HAND);
     }
     
-    private static void sweepAttack(Player player, List<LivingEntity> list, float attackDamage, @Nullable Entity target) {
+    private static void sweepAttack(Player player, List<Entity> list, float attackDamage, @Nullable Entity target) {
         float sweepingAttackDamage = 1.0F + (float) player.getAttributeValue(Attributes.SWEEPING_DAMAGE_RATIO) * attackDamage;
         System.out.println(list);
 
-        for (LivingEntity livingEntity : list) {
+        for (Entity entity : list) {
             DamageSource damageSource = player.damageSources().playerAttack(player);//player.damageSources().playerAttack(player);
-            float enchantedDamage = player.getEnchantedDamage(livingEntity, sweepingAttackDamage, damageSource);
-            var deltaMovement = livingEntity.getDeltaMovement(); // get current velocity to reset after hurt
-            livingEntity.hurt(damageSource, enchantedDamage);
-            livingEntity.setDeltaMovement(deltaMovement); // reset/cancel vanilla knockback (triggered by .hurt())
-            livingEntity.knockback(0.1f, // apply our own knockback!!
-                Mth.sin((float)(player.getYRot() * ((float) Math.PI / 180.0))),
-                -Mth.cos((float)(player.getYRot() * ((float) Math.PI / 180.0))));
+            float enchantedDamage = player.getEnchantedDamage(entity, sweepingAttackDamage, damageSource);
+            var deltaMovement = entity.getDeltaMovement(); // get current velocity to reset after hurt
+            entity.hurt(damageSource, enchantedDamage);
+            entity.setDeltaMovement(deltaMovement); // reset/cancel vanilla knockback (triggered by .hurt())
+            if (entity instanceof LivingEntity living) {
+                living.knockback(0.1f, // apply our own knockback!!
+                    Mth.sin((float)(player.getYRot() * ((float) Math.PI / 180.0))),
+                    -Mth.cos((float)(player.getYRot() * ((float) Math.PI / 180.0))));
+            } else if (entity instanceof EnderDragonPart part) {
+                EnderDragon parent = part.parentMob;
+                parent.hurt(part, damageSource, sweepingAttackDamage);
+            }
             if (player.level() instanceof ServerLevel serverLevel) {
-                EnchantmentHelper.doPostAttackEffects(serverLevel, livingEntity, damageSource);
+                EnchantmentHelper.doPostAttackEffects(serverLevel, entity, damageSource);
             }
             // play hit sound
             player.level().playSound(
                 null, // null = audible for all nearby players
-                livingEntity.getX(),
-                livingEntity.getY(),
-                livingEntity.getZ(),
+                entity.getX(),
+                entity.getY(),
+                entity.getZ(),
                 SoundEvents.PLAYER_ATTACK_WEAK,
                 SoundSource.PLAYERS,
                 1.0F,  // volume
@@ -139,7 +146,7 @@ public class SweepAttackHelper {
         );
     }
 
-    public static List<LivingEntity> getEntitiesInSweepCone(Player player, double reach) {
+    public static List<Entity> getEntitiesInSweepCone(Player player, double reach) {
         double minSweep = 0.0;
         double maxSweep = 2.5;
         double normalizedReach = Mth.clamp((reach - 1.0) / (7.5 - 1.0), 0.0, 1.0);
@@ -155,12 +162,16 @@ public class SweepAttackHelper {
         // Rough bounding box for nearby entity pre-filtering
         AABB searchBox = player.getBoundingBox().expandTowards(lookVec.scale(reach*2)).inflate(radius*2);
 
-        List<LivingEntity> potentialTargets = level.getEntitiesOfClass(LivingEntity.class, searchBox, e ->
+        List<Entity> potentialTargets = level.getEntitiesOfClass(Entity.class, searchBox, e ->
             e != player && e.isPickable() && !e.isSpectator() && !player.isAlliedTo(e)
         );
 
         potentialTargets = potentialTargets.stream()
             .filter(entity -> {
+                if ((!(entity instanceof LivingEntity || entity instanceof EnderDragonPart)) || // can we even attack this thing? if no, return false
+                    entity == player || !entity.isPickable() || entity.isSpectator())
+                        return false;
+
                 Vec3 entityPos = entity.position().add(0, entity.getBbHeight() / 2, 0); // center of body
                 Vec3 toEntity = entityPos.subtract(eyePos);
 
