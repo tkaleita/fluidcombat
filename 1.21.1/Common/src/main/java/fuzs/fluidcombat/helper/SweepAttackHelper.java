@@ -50,15 +50,18 @@ import java.util.List;
 public class SweepAttackHelper {
 
     public static Particle sweepParticle;
+
     public static float forwardOffset = 1.2f;
     public static float downwardOffset = 0.55f;
     public static float sidewaysOffset = 0.25f;
+
+    public static double minSweep = 0.25;
+    public static double maxSweep = 1.5;
 
     public static void initiateSweepAttack(Player player) {
         if (!canSweepAttack(player)) return;
 
         var target = Minecraft.getInstance().crosshairPickEntity;
-        System.out.println("start sweep attack! with target: " + target);
         float attackDamage = (float) player.getAttribute(Attributes.ATTACK_DAMAGE).getValue();
         if (attackDamage > 0.0F) {
             double reach = player.getAttributeValue(CommonAbstractions.INSTANCE.getAttackRangeAttribute());
@@ -72,35 +75,35 @@ public class SweepAttackHelper {
     
     private static void sweepAttack(Player player, List<Entity> list, float attackDamage, @Nullable Entity target) {
         float sweepingAttackDamage = 1.0F + (float) player.getAttributeValue(Attributes.SWEEPING_DAMAGE_RATIO) * attackDamage;
+        DamageSource damageSource = player.damageSources().playerAttack(player);
 
         for (Entity entity : list) {
-            if (entity == target) continue;
+            var isCrit = !player.onGround() && player.getDeltaMovement().y < -0.15; // its a crit if player is falling... downwards
 
-            var isCrit = false;
-            if (!player.onGround() && player.getDeltaMovement().y < 0.0)
-                isCrit = true; // its a crit if player is falling... downwards
-
-            DamageSource damageSource = player.damageSources().playerAttack(player);
-
+            if (target != null && entity.getUUID().equals(target.getUUID())) {
+                continue;
+            };
+            
+            float enchantedSweepDamage = player.getEnchantedDamage(entity, sweepingAttackDamage, damageSource);
             var sound = SoundEvents.PLAYER_ATTACK_WEAK;
-            float enchantedDamage = player.getEnchantedDamage(entity, sweepingAttackDamage, damageSource);
             if (isCrit) {
                 sound = SoundEvents.PLAYER_ATTACK_STRONG;
-                enchantedDamage *= 1.5;
+                enchantedSweepDamage *= 1.5;
                 if (player.level() instanceof ServerLevel serverLevel)
                     serverLevel.sendParticles(ParticleTypes.CRIT, entity.getX(), entity.getY() + 1.0, entity.getZ(), 5, 0, 0, 0, 1);
             } 
             
             var deltaMovement = entity.getDeltaMovement(); // get current velocity to reset after hurt
-            entity.hurt(damageSource, enchantedDamage);
+            entity.hurt(damageSource, enchantedSweepDamage);
             entity.setDeltaMovement(deltaMovement); // reset/cancel vanilla knockback (triggered by .hurt())
+
             if (entity instanceof LivingEntity living) {
                 living.knockback(0.1f, // apply our own knockback!!
                     Mth.sin((float)(player.getYRot() * ((float) Math.PI / 180.0))),
                     -Mth.cos((float)(player.getYRot() * ((float) Math.PI / 180.0))));
             } else if (entity instanceof EnderDragonPart part) {
                 EnderDragon parent = part.parentMob;
-                parent.hurt(part, damageSource, enchantedDamage);
+                parent.hurt(part, damageSource, enchantedSweepDamage);
             }
 
             if (player.level() instanceof ServerLevel serverLevel) {
@@ -134,6 +137,7 @@ public class SweepAttackHelper {
             player.position().y(), // otherwise, particle can spawn inside blocks, making it look too dark
             player.position().z(),
             0.0, 0.0, 0.0);
+        SweepAttackHelper.updateSweepAttackParticle(player, level);
 
         // if weapon has fire aspect, make it ORANGE
         ItemStack stack = player.getMainHandItem();
@@ -145,7 +149,7 @@ public class SweepAttackHelper {
         }
 
         // if crit is possible, turn particle red
-        if (!player.onGround() && player.getDeltaMovement().y < 0.0) 
+        if (!player.onGround() && player.getDeltaMovement().y < -0.15) 
             sweepParticle.setColor(0.6f, 0.1f, 0.1f);
 
         // set angle of particle
@@ -168,8 +172,6 @@ public class SweepAttackHelper {
     }
 
     public static List<Entity> getEntitiesInSweepCone(Player player, double reach) {
-        double minSweep = 0.0;
-        double maxSweep = 2.5;
         double normalizedReach = Mth.clamp((reach - 1.0) / (7.5 - 1.0), 0.0, 1.0);
         double radius = Mth.lerp(1.0 - normalizedReach, minSweep, maxSweep);
         System.out.println("sweep attack triggered!! reach:" + reach + "radius:" + radius);
@@ -190,12 +192,21 @@ public class SweepAttackHelper {
 
         potentialTargets = potentialTargets.stream()
             .filter(entity -> {
-                if ((!(entity instanceof LivingEntity || entity instanceof EnderDragonPart)) || // can we even attack this thing? if no, return false
-                    entity == player || !entity.isPickable() || entity.isSpectator())
-                        return false;
+                if ((!(entity instanceof LivingEntity || entity instanceof EnderDragonPart)) || entity == player || !entity.isPickable() || entity.isSpectator()) {
+                    return false; // can we even attack this thing? if no, return false
+                }
+                AABB bb = entity.getBoundingBox();
+                Vec3 entityPos = new Vec3(
+                    Mth.clamp(eyePos.x, bb.minX, bb.maxX),
+                    Mth.clamp(eyePos.y, bb.minY, bb.maxY),
+                    Mth.clamp(eyePos.z, bb.minZ, bb.maxZ)
+                );
 
-                Vec3 entityPos = entity.position().add(0, entity.getBbHeight() / 2, 0); // center of body
                 Vec3 toEntity = entityPos.subtract(eyePos);
+
+                // DEBUG
+                if ((player.level() instanceof ServerLevel serverLevel))
+                    serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, entityPos.x, entityPos.y, entityPos.z, 1, 0, 0, 0, 0);
 
                 double alongRay = toEntity.dot(lookVec); // 1d projection of distance between us and the enemy
                 if (alongRay < 0 || alongRay > reach) return false;
@@ -299,7 +310,7 @@ public class SweepAttackHelper {
         return sidewaysAdjusted;
     }
 
-     private static boolean canSweepAttack(Player player) {
+    public static boolean canSweepAttack(Player player) {
         ItemStack stack = player.getMainHandItem();
         var components = stack.getComponents();
 

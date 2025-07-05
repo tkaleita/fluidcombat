@@ -46,19 +46,16 @@ abstract class MinecraftMixin {
         throw new RuntimeException();
     }
 
-    @Inject(method = "startAttack", at = @At(value = "HEAD"))//, target = "Lnet/minecraft/client/player/LocalPlayer;resetAttackStrengthTicker()V", shift = At.Shift.BEFORE), cancellable = true)
+    @Inject(method = "startAttack", at = @At("RETURN"))//, target = "Lnet/minecraft/client/player/LocalPlayer;resetAttackStrengthTicker()V", shift = At.Shift.BEFORE), cancellable = true)
     private void startAttack(CallbackInfoReturnable<Boolean> callback) {
-        System.out.println("ATTACKING");
 
         HitResult hit = Minecraft.getInstance().hitResult;
         if (hit != null && hit.getType() == HitResult.Type.BLOCK) return;
 
-        if (this.player.getAttackStrengthScale(0.5F) == 1.0F) {
-            ((MultiPlayerGameModeAccessor) this.gameMode).combatnouveau$callEnsureHasSentCarriedItem();
-            FluidCombat.NETWORK.sendToServer(new ServerboundSweepAttackMessage((this.player).isShiftKeyDown()));
-            // possibly blocked by retainEnergyOnMiss option, we want it regardless in case of triggering a sweep attack
-            this.player.resetAttackStrengthTicker();
-            SweepAttackHelper.spawnSweepAttackEffects(player, level);
-        }
+        ((MultiPlayerGameModeAccessor) this.gameMode).combatnouveau$callEnsureHasSentCarriedItem();
+        FluidCombat.NETWORK.sendToServer(new ServerboundSweepAttackMessage((this.player).isShiftKeyDown()));
+        // possibly blocked by retainEnergyOnMiss option, we want it regardless in case of triggering a sweep attack
+        this.player.resetAttackStrengthTicker();
+        SweepAttackHelper.spawnSweepAttackEffects(player, level);
     }
 }
