@@ -15,7 +15,6 @@ import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -27,7 +26,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
-import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -57,7 +55,7 @@ public class SweepAttackHelper {
     public static float sidewaysOffset = 0.25f;
 
     public static double minSweep = 0.25;
-    public static double maxSweep = 1.5;
+    public static double maxSweep = 2;
 
     public static void initiateSweepAttack(Player player) {
         if (!canSweepAttack(player)) return;
@@ -180,7 +178,7 @@ public class SweepAttackHelper {
     }
 
     public static List<Entity> getEntitiesInSweepCone(Player player, double reach) {
-        double normalizedReach = Mth.clamp((reach - 1.0) / (7.5 - 1.0), 0.0, 1.0);
+        double normalizedReach = Mth.clamp((reach - 1.0) / (6.0 - 1.0), 0.0, 1.0);
         double radius = Mth.lerp(1.0 - normalizedReach, minSweep, maxSweep);
         System.out.println("sweep attack triggered!! reach:" + reach + "radius:" + radius);
 
