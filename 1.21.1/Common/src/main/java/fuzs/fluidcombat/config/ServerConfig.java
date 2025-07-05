@@ -23,17 +23,12 @@ public class ServerConfig implements ConfigCore {
     public boolean requireSweepingEdge = true;
     @Config(category = SWEEPING_CATEGORY, description = "Do not perform sweep attacks when sneaking.")
     public boolean noSweepingWhenSneaking = false;
-    @Config(category = SWEEPING_CATEGORY, description = {"Allow sweep attack without hitting mobs, just by attacking air basically.", "This attack will not work when the attack button is held for continuous attacking."})
-    public boolean airSweepAttack = true;
     @Config(description = "Attacking will no longer stop the player from sprinting. Very useful when swimming, so you can fight underwater without being stopped on every hit.")
     public boolean sprintAttacks = true;
     @Config(description = {"Force all entity hitboxes to have a cubic size of at least 0.9 blocks, making them easier to hit and shoot at.", "This only affects targeting an entity, no collisions or whatsoever. Useful for hitting e.g. bats, rabbits, silverfish, fish, and most baby animals."})
     public boolean minHitboxSize = true;
     @Config(category = COOLDOWN_CATEGORY, description = "Holding down the attack button keeps attacking continuously. No more spam clicking required.")
-    public boolean holdAttackButton = false;
-    @Config(category = COOLDOWN_CATEGORY, description = {"Delay in ticks between attacks when holding the attack button is enabled.", "This basically also puts a cap on the max spam clicking speed."})
-    @Config.IntRange(min = 0)
-    public int holdAttackButtonDelay = 5;
+    public boolean holdAttackButton = true;
     @Config(category = ITEMS_CATEGORY, description = "Add a delay of 4 ticks between throwing snowballs or eggs, just like with ender pearls.")
     public boolean throwablesDelay = true;
     @Config(category = ITEMS_CATEGORY, description = "Eating and drinking both are interrupted if the player is damaged.")
@@ -44,11 +39,6 @@ public class ServerConfig implements ConfigCore {
     public boolean noAxeAttackPenalty = true;
     @Config(category = COOLDOWN_CATEGORY, description = "Attack cooldown is unaffected by switching hotbar items.")
     public boolean fastSwitching = true;
-    @Config(category = COOLDOWN_CATEGORY, description = "Melee attacks that don't hit a target won't trigger the attack cooldown.")
-    public boolean retainEnergyOnMiss = false;
-    @Config(category = COOLDOWN_CATEGORY, description = {"Disable attacking when attack cooldown is below a certain percentage.", "Setting this to 0.0 means attacking is possible with any strength as in vanilla."})
-    @Config.DoubleRange(min = 0.0, max = 1.0)
-    public double minAttackStrength = 1.0;
     @Config(description = "Disables damage immunity when hit by a projectile. Makes it possible for entities to be hit by multiple projectiles at once (useful for the multishot enchantment).")
     public boolean noProjectileImmunity = true;
     @Config(category = SHIELD_CATEGORY, description = "Skip 5 tick warm-up delay when activating a shield, so they become effective instantly.")

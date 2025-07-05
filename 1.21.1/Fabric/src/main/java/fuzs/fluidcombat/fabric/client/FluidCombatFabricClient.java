@@ -30,7 +30,10 @@ public class FluidCombatFabricClient implements ClientModInitializer {
         // update sweep particle on every tick if it exists
         ClientTickEvents.END.register(client -> {
             if (SweepAttackHelper.sweepParticle != null && client.player != null) {
-                SweepAttackHelper.updateSweepAttackParticle(client.player, client.level);
+                SweepAttackHelper.updateSweepAttackParticle(SweepAttackHelper.sweepParticle, client.player, client.level);
+            }
+            if (SweepAttackHelper.secondarySweepParticle != null && client.player != null) {
+                SweepAttackHelper.updateSweepAttackParticle(SweepAttackHelper.secondarySweepParticle, client.player, client.level);
             }
         });
     }

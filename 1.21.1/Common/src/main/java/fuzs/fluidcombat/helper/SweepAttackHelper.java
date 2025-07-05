@@ -50,6 +50,7 @@ import java.util.List;
 public class SweepAttackHelper {
 
     public static Particle sweepParticle;
+    public static Particle secondarySweepParticle;
 
     public static float forwardOffset = 1.2f;
     public static float downwardOffset = 0.55f;
@@ -137,7 +138,6 @@ public class SweepAttackHelper {
             player.position().y(), // otherwise, particle can spawn inside blocks, making it look too dark
             player.position().z(),
             0.0, 0.0, 0.0);
-        SweepAttackHelper.updateSweepAttackParticle(player, level);
 
         // if weapon has fire aspect, make it ORANGE
         ItemStack stack = player.getMainHandItem();
@@ -145,7 +145,15 @@ public class SweepAttackHelper {
         Holder<Enchantment> fireAspect = enchantmentRegistry.getHolderOrThrow(Enchantments.FIRE_ASPECT);
         int fireAspectLevel = EnchantmentHelper.getItemEnchantmentLevel(fireAspect, stack);
         if (fireAspectLevel > 0) {
-            sweepParticle.setColor(1.0f, 0.4f, 0.1f); // fiery orange
+            // spawn a smaller secondary particle!!
+            secondarySweepParticle = pe.createParticle(chosenSweep,
+            player.position().x(),
+            player.position().y(), 
+            player.position().z(),
+            0.0, 0.0, 0.0);
+            secondarySweepParticle.scale(0.75f);
+            secondarySweepParticle.setColor(1.0f, 0.4f, 0.1f); // fiery orange
+
         }
 
         // if crit is possible, turn particle red
@@ -205,8 +213,8 @@ public class SweepAttackHelper {
                 Vec3 toEntity = entityPos.subtract(eyePos);
 
                 // DEBUG
-                if ((player.level() instanceof ServerLevel serverLevel))
-                    serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, entityPos.x, entityPos.y, entityPos.z, 1, 0, 0, 0, 0);
+                /*if ((player.level() instanceof ServerLevel serverLevel))
+                    serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, entityPos.x, entityPos.y, entityPos.z, 1, 0, 0, 0, 0);*/
 
                 double alongRay = toEntity.dot(lookVec); // 1d projection of distance between us and the enemy
                 if (alongRay < 0 || alongRay > reach) return false;
@@ -287,10 +295,15 @@ public class SweepAttackHelper {
         }
     }
 
-    public static boolean updateSweepAttackParticle(Player player, Level level) {
+    public static boolean updateSweepAttackParticle(Particle sweepParticle, Player player, Level level) {
         if (sweepParticle == null) return false;
-
-        var newPos = getSweepAttackPosition(player, forwardOffset, downwardOffset, sidewaysOffset);
+        
+        Vec3 newPos = null;
+        if (sweepParticle == secondarySweepParticle) {
+            newPos = getSweepAttackPosition(player, forwardOffset-0.05f, downwardOffset, sidewaysOffset);
+        } else {
+            newPos = getSweepAttackPosition(player, forwardOffset, downwardOffset, sidewaysOffset);
+        }
         sweepParticle.setPos(newPos.x(), newPos.y(), newPos.z());
         return true;
     }
