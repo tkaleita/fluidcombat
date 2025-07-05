@@ -1,5 +1,7 @@
 package fuzs.fluidcombat.helper;
 
+import fuzs.fluidcombat.FluidCombat;
+import fuzs.fluidcombat.config.ClientConfig;
 import fuzs.fluidcombat.core.CommonAbstractions;
 import fuzs.fluidcombat.particles.CustomSweepParticle;
 import fuzs.fluidcombat.particles.ModParticles;
@@ -13,6 +15,7 @@ import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -53,12 +56,15 @@ public class SweepAttackHelper {
 
     public static void initiateSweepAttack(Player player) {
         if (!canSweepAttack(player)) return;
+
+        var target = Minecraft.getInstance().crosshairPickEntity;
+        System.out.println("start sweep attack! with target: " + target);
         float attackDamage = (float) player.getAttribute(Attributes.ATTACK_DAMAGE).getValue();
         if (attackDamage > 0.0F) {
             double reach = player.getAttributeValue(CommonAbstractions.INSTANCE.getAttackRangeAttribute());
 
             var list = getEntitiesInSweepCone(player, reach);
-            sweepAttack(player, list, attackDamage, null);
+            sweepAttack(player, list, attackDamage, target);
         }
         // also resets attack ticker
         player.swing(InteractionHand.MAIN_HAND);
@@ -66,11 +72,25 @@ public class SweepAttackHelper {
     
     private static void sweepAttack(Player player, List<Entity> list, float attackDamage, @Nullable Entity target) {
         float sweepingAttackDamage = 1.0F + (float) player.getAttributeValue(Attributes.SWEEPING_DAMAGE_RATIO) * attackDamage;
-        System.out.println(list);
 
         for (Entity entity : list) {
-            DamageSource damageSource = player.damageSources().playerAttack(player);//player.damageSources().playerAttack(player);
+            if (entity == target) continue;
+
+            var isCrit = false;
+            if (!player.onGround() && player.getDeltaMovement().y < 0.0)
+                isCrit = true; // its a crit if player is falling... downwards
+
+            DamageSource damageSource = player.damageSources().playerAttack(player);
+
+            var sound = SoundEvents.PLAYER_ATTACK_WEAK;
             float enchantedDamage = player.getEnchantedDamage(entity, sweepingAttackDamage, damageSource);
+            if (isCrit) {
+                sound = SoundEvents.PLAYER_ATTACK_STRONG;
+                enchantedDamage *= 1.5;
+                if (player.level() instanceof ServerLevel serverLevel)
+                    serverLevel.sendParticles(ParticleTypes.CRIT, entity.getX(), entity.getY() + 1.0, entity.getZ(), 5, 0, 0, 0, 1);
+            } 
+            
             var deltaMovement = entity.getDeltaMovement(); // get current velocity to reset after hurt
             entity.hurt(damageSource, enchantedDamage);
             entity.setDeltaMovement(deltaMovement); // reset/cancel vanilla knockback (triggered by .hurt())
@@ -80,18 +100,20 @@ public class SweepAttackHelper {
                     -Mth.cos((float)(player.getYRot() * ((float) Math.PI / 180.0))));
             } else if (entity instanceof EnderDragonPart part) {
                 EnderDragon parent = part.parentMob;
-                parent.hurt(part, damageSource, sweepingAttackDamage);
+                parent.hurt(part, damageSource, enchantedDamage);
             }
+
             if (player.level() instanceof ServerLevel serverLevel) {
                 EnchantmentHelper.doPostAttackEffects(serverLevel, entity, damageSource);
             }
+
             // play hit sound
             player.level().playSound(
                 null, // null = audible for all nearby players
                 entity.getX(),
                 entity.getY(),
                 entity.getZ(),
-                SoundEvents.PLAYER_ATTACK_WEAK,
+                sound,
                 SoundSource.PLAYERS,
                 1.0F,  // volume
                 0.9F + player.level().random.nextFloat() * 0.2F // slightly varied pitch
@@ -107,11 +129,10 @@ public class SweepAttackHelper {
         var chosenSweep = Math.random() > 0.5f ? ModParticles.CUSTOM_SWEEP : ModParticles.CUSTOM_SWEEP_REVERSE;
 
         // actually spawn sweep attack particle
-        var sweepParticlePositon = SweepAttackHelper.getSweepAttackPosition(player, forwardOffset, downwardOffset, sidewaysOffset);
         sweepParticle = pe.createParticle(chosenSweep,
-            sweepParticlePositon.x(),
-            sweepParticlePositon.y(),
-            sweepParticlePositon.z(),
+            player.position().x(), // spawn it inside player first, so lighting matches up
+            player.position().y(), // otherwise, particle can spawn inside blocks, making it look too dark
+            player.position().z(),
             0.0, 0.0, 0.0);
 
         // if weapon has fire aspect, make it ORANGE
@@ -151,9 +172,10 @@ public class SweepAttackHelper {
         double maxSweep = 2.5;
         double normalizedReach = Mth.clamp((reach - 1.0) / (7.5 - 1.0), 0.0, 1.0);
         double radius = Mth.lerp(1.0 - normalizedReach, minSweep, maxSweep);
-        System.out.println("reach:" + reach + "radius:" + radius);
+        System.out.println("sweep attack triggered!! reach:" + reach + "radius:" + radius);
 
-        drawSweepTube(player, reach, radius);
+        if (FluidCombat.CONFIG.get(ClientConfig.class).showSweepTubeParticles)
+            drawSweepTube(player, reach, radius);
 
         Vec3 eyePos = player.getEyePosition();
         Vec3 lookVec = player.getLookAngle().normalize();

@@ -26,7 +26,7 @@ public class FluidCombatClient implements ClientModConstructor {
         RenderGuiLayerEvents.after(RenderGuiLayerEvents.HOTBAR).register(
                 ShieldIndicatorHandler.onAfterRenderGuiLayer(RenderGuiLayerEvents.HOTBAR));
         InteractionInputEvents.ATTACK.register(AutoAttackHandler::onAttackInteraction);
-        ClientTickEvents.START.register(AutoAttackHandler::onStartTick);
+        //ClientTickEvents.START.register(AutoAttackHandler::onStartTick);
         RenderHandEvents.OFF_HAND.register(RenderOffhandItemHandler::onRenderOffHand);
     }
 }

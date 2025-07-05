@@ -1,6 +1,5 @@
 package fuzs.fluidcombat.client.handler;
 
-import fuzs.fluidcombat.FluidCombat;
 import fuzs.fluidcombat.config.ServerConfig;
 import fuzs.puzzleslib.api.event.v1.core.EventResult;
 import net.minecraft.client.Minecraft;
@@ -8,28 +7,13 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.HitResult;
 
 public class AutoAttackHandler {
-    private static int autoAttackDelay;
-
-    public static void onStartTick(Minecraft minecraft) {
-        if (minecraft.player != null && minecraft.player.getAttackStrengthScale(0.5F) < 1.0F) {
-            resetAutoAttackDelay();
-        } else if (autoAttackDelay > 0) {
-            autoAttackDelay--;
-        }
-    }
-
-    public static void resetAutoAttackDelay() {
-        autoAttackDelay = FluidCombat.CONFIG.get(ServerConfig.class).holdAttackButtonDelay;
-    }
-
-    public static boolean readyForAutoAttack() {
-        return autoAttackDelay == 0;
+    public static boolean readyForAutoAttack(LocalPlayer player) {
+        return player.getAttackStrengthScale(0.5F) >= 1.0F;
     }
 
     public static EventResult onAttackInteraction(Minecraft minecraft, LocalPlayer player, HitResult hitResult) {
         if (minecraft.hitResult.getType() != HitResult.Type.BLOCK) {
-            // cancel attack when attack cooldown is not completely recharged
-            if (player.getAttackStrengthScale(0.5F) < FluidCombat.CONFIG.get(ServerConfig.class).minAttackStrength) {
+            if (player.getAttackStrengthScale(0.5F) < fuzs.fluidcombat.FluidCombat.CONFIG.get(ServerConfig.class).minAttackStrength) {
                 return EventResult.INTERRUPT;
             }
         }

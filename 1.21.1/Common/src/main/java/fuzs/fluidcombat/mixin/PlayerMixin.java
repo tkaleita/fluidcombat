@@ -77,7 +77,7 @@ abstract class PlayerMixin extends LivingEntity {
     @Inject(method = "attack", at = @At("TAIL"))
     public void injectCustomSweep(Entity target, CallbackInfo callback) {
         if ((Object) this instanceof Player player) {
-            SweepAttackHelper.initiateSweepAttack(player);
+            //SweepAttackHelper.initiateSweepAttack(player, target);
         }
     }
 
