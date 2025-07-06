@@ -23,6 +23,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
@@ -180,7 +181,7 @@ public class SweepAttackHelper {
     public static List<Entity> getEntitiesInSweepCone(Player player, double reach) {
         double normalizedReach = Mth.clamp((reach - 1.0) / (6.0 - 1.0), 0.0, 1.0);
         double radius = Mth.lerp(1.0 - normalizedReach, minSweep, maxSweep);
-        System.out.println("sweep attack triggered!! reach:" + reach + "radius:" + radius);
+        //System.out.println("sweep attack triggered!! reach:" + reach + "radius:" + radius);
 
         if (FluidCombat.CONFIG.get(ClientConfig.class).showSweepTubeParticles)
             drawSweepTube(player, reach, radius);
@@ -201,6 +202,9 @@ public class SweepAttackHelper {
                 if ((!(entity instanceof LivingEntity || entity instanceof EnderDragonPart)) || entity == player || !entity.isPickable() || entity.isSpectator()) {
                     return false; // can we even attack this thing? if no, return false
                 }
+                // pet-check (doesnt fit in above filter)
+                if (entity instanceof TamableAnimal tamable && tamable.isOwnedBy(player)) return false;
+
                 AABB bb = entity.getBoundingBox();
                 Vec3 entityPos = new Vec3(
                     Mth.clamp(eyePos.x, bb.minX, bb.maxX),

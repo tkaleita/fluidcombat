@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
 
 import org.jetbrains.annotations.Nullable;
@@ -57,5 +58,6 @@ abstract class MinecraftMixin {
         // possibly blocked by retainEnergyOnMiss option, we want it regardless in case of triggering a sweep attack
         this.player.resetAttackStrengthTicker();
         SweepAttackHelper.spawnSweepAttackEffects(player, level);
+        player.swing(InteractionHand.MAIN_HAND, true); // force full swing animation
     }
 }

@@ -9,7 +9,8 @@
     "FoodDataMixin",
     "LivingEntityMixin",
     "PlayerMixin",
-    "ProjectileUtilMixin"
+    "ProjectileUtilMixin",
+    "ItemMixin"
   ],
   "client": [
     "client.ItemStackMixin",
@@ -17,7 +18,8 @@
     "client.MinecraftMixin",
     "client.accessor.MultiPlayerGameModeAccessor",
     "client.accessor.MinecraftAccessor",
-    "client.MultiPlayerGameModeMixin"
+    "client.MultiPlayerGameModeMixin",
+    "client.ItemInHandRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

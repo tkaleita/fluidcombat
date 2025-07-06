@@ -4,7 +4,6 @@ import fuzs.fluidcombat.client.handler.AutoAttackHandler;
 import fuzs.fluidcombat.client.handler.RenderOffhandItemHandler;
 import fuzs.fluidcombat.client.handler.ShieldIndicatorHandler;
 import fuzs.puzzleslib.api.client.core.v1.ClientModConstructor;
-import fuzs.puzzleslib.api.client.event.v1.ClientTickEvents;
 import fuzs.puzzleslib.api.client.event.v1.entity.player.InteractionInputEvents;
 import fuzs.puzzleslib.api.client.event.v1.gui.RenderGuiLayerEvents;
 import fuzs.puzzleslib.api.client.event.v1.renderer.RenderHandEvents;

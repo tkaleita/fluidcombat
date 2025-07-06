@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
 import fuzs.fluidcombat.FluidCombat;
 import fuzs.fluidcombat.config.ServerConfig;
-import fuzs.fluidcombat.helper.SweepAttackHelper;
+import fuzs.fluidcombat.helper.BlockStanceHelper;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -33,6 +33,8 @@ abstract class PlayerMixin extends LivingEntity {
         if (amount == 0.0F && this.level().getDifficulty() != Difficulty.PEACEFUL) {
             callback.setReturnValue(super.hurt(source, amount));
         }
+
+        
     }
 
     @Inject(method = "attack", at = @At("HEAD"))
@@ -76,13 +78,20 @@ abstract class PlayerMixin extends LivingEntity {
 
     @Inject(method = "attack", at = @At("TAIL"))
     public void injectCustomSweep(Entity target, CallbackInfo callback) {
-        if ((Object) this instanceof Player player) {
-            //SweepAttackHelper.initiateSweepAttack(player, target);
-        }
+        /*if ((Object) this instanceof Player player) {
+            SweepAttackHelper.initiateSweepAttack(player, target);
+        }*/
     }
 
     @Inject(method = "sweepAttack", at = @At("HEAD"), cancellable = true)
     public void cancelSweepAttackParticle(CallbackInfo callback) {
         callback.cancel(); // cancel vanilla sweep attack particle from spawning
+    }
+
+    @Inject(method = "disableShield", at = @At("HEAD"), cancellable = true)
+    private void onDisableShield(CallbackInfo ci) {
+        if ((Object) this instanceof Player player) {
+            BlockStanceHelper.disableAllGuardStances(player, 100);
+        }
     }
 }
