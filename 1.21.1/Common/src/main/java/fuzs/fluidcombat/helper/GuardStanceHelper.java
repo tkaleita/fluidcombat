@@ -10,10 +10,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.UseAnim;
 
-public class BlockStanceHelper {
+public class GuardStanceHelper {
     private static final Set<UUID> GUARDING_PLAYERS = ConcurrentHashMap.newKeySet();
 
-    // should DRY this but it doesnt work so fuck it
+    // should DRY this but it causes recursion so fuck it
     public static boolean canUseGuardStance(Player player) {
         ItemStack main = player.getMainHandItem();
         if (main.isEmpty()) return false; // we have no item, cant block
@@ -69,7 +69,7 @@ public class BlockStanceHelper {
             }
             if (hurtItem) weapon.hurtAndBreak(5, player, player.getEquipmentSlotForItem(weapon));
             player.stopUsingItem();
-            BlockStanceHelper.stopGuarding(player); // maybe break stance too
+            GuardStanceHelper.stopGuarding(player); // maybe break stance too
     }
 
     public static void startGuarding(Player player) {

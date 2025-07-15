@@ -3,6 +3,7 @@ package fuzs.fluidcombat.handler;
 import fuzs.fluidcombat.FluidCombat;
 import fuzs.fluidcombat.client.helper.UseItemFabricClientHelper;
 import fuzs.fluidcombat.config.ServerConfig;
+import fuzs.fluidcombat.helper.GuardStanceHelper;
 import fuzs.fluidcombat.helper.UseItemFabricHelper;
 import fuzs.puzzleslib.api.core.v1.ModLoaderEnvironment;
 import fuzs.puzzleslib.api.event.v1.core.EventResult;
@@ -30,6 +31,11 @@ public class CombatTestHandler {
         ItemStack mainHandItem = player.getMainHandItem();
         if (!ItemStack.matches(player.lastItemInMainHand, mainHandItem)) {
             player.lastItemInMainHand = mainHandItem.copy();
+            // resets guard stance when switching items
+            if (GuardStanceHelper.isGuarding(player)) {
+                GuardStanceHelper.stopGuarding(player);
+                player.stopUsingItem();
+            }
         }
     }
 

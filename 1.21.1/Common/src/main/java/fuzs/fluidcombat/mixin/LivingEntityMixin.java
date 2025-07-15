@@ -2,7 +2,7 @@ package fuzs.fluidcombat.mixin;
 
 import fuzs.fluidcombat.FluidCombat;
 import fuzs.fluidcombat.config.ServerConfig;
-import fuzs.fluidcombat.helper.BlockStanceHelper;
+import fuzs.fluidcombat.helper.GuardStanceHelper;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
@@ -20,6 +20,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -35,13 +36,13 @@ abstract class LivingEntityMixin extends Entity {
         if (!(target instanceof Player player)) return;
 
         ItemStack activeItem = player.getUseItem();
-        boolean isGuardStance = BlockStanceHelper.isGuarding(player);
+        boolean isGuardStance = GuardStanceHelper.isGuarding(player);
         boolean isActualShield = activeItem.getUseAnimation() == UseAnim.BLOCK;
 
         if (isGuardStance) {
             // 👉 Custom knockback or block effects for guard stance
             this.knockback(0.25, target.getX() - this.getX(), target.getZ() - this.getZ()); // lighter stagger
-            BlockStanceHelper.disableGuardStance(player, 60, true);
+            GuardStanceHelper.disableGuardStance(player, 60, true);
             player.level().playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 0.75F, 0.9F);
             callback.cancel();
         } else if (isActualShield) {
@@ -67,6 +68,18 @@ abstract class LivingEntityMixin extends Entity {
     @Shadow
     public abstract void knockback(double p_147241_, double p_147242_, double p_147243_);
 
+    @ModifyArg(
+        method = "knockback", 
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/world/phys/Vec3;scale(D)Lnet/minecraft/world/phys/Vec3;"
+        ),
+        index = 0
+    )
+    private double onScaleKnockback(double originalStrength) {
+        return originalStrength * 0.5D;
+    }
+
     @Inject(method = "isDamageSourceBlocked", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/damagesource/DamageSource;getSourcePosition()Lnet/minecraft/world/phys/Vec3;", shift = At.Shift.BEFORE), cancellable = true)
     public void isDamageSourceBlocked(DamageSource damageSource, CallbackInfoReturnable<Boolean> callback) {
         Vec3 sourcePosition = damageSource.getSourcePosition();
@@ -79,7 +92,7 @@ abstract class LivingEntityMixin extends Entity {
         double protectionArc = -Math.cos(FluidCombat.CONFIG.get(ServerConfig.class).shieldProtectionArc * Math.PI * 0.5 / 180.0);
         boolean isInFrontArc = horizontalVector.dot(viewVector) < protectionArc;
 
-        if ((Object) this instanceof Player player && (player.isBlocking() || BlockStanceHelper.canUseGuardStance(player))) {
+        if ((Object) this instanceof Player player && (player.isBlocking() || GuardStanceHelper.canUseGuardStance(player))) {
             callback.setReturnValue(isInFrontArc);
         }
     }

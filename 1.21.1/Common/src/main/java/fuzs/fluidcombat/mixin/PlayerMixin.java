@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
 import fuzs.fluidcombat.FluidCombat;
 import fuzs.fluidcombat.config.ServerConfig;
-import fuzs.fluidcombat.helper.BlockStanceHelper;
+import fuzs.fluidcombat.helper.GuardStanceHelper;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -91,7 +91,7 @@ abstract class PlayerMixin extends LivingEntity {
     @Inject(method = "disableShield", at = @At("HEAD"), cancellable = true)
     private void onDisableShield(CallbackInfo ci) {
         if ((Object) this instanceof Player player) {
-            BlockStanceHelper.disableAllGuardStances(player, 100);
+            GuardStanceHelper.disableAllGuardStances(player, 100);
         }
     }
 }

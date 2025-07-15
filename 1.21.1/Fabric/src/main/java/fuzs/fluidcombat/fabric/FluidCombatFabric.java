@@ -1,14 +1,12 @@
 package fuzs.fluidcombat.fabric;
 
+import org.lwjgl.glfw.GLFW;
+
 import fuzs.fluidcombat.FluidCombat;
-import fuzs.fluidcombat.helper.DebugTransform;
-import fuzs.puzzleslib.api.client.event.v1.ClientTickEvents;
 import fuzs.puzzleslib.api.core.v1.ModConstructor;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * Fabric‑only client bootstrap that registers debug keybinds for tweaking the

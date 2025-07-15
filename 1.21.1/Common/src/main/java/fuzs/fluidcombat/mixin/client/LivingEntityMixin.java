@@ -1,6 +1,6 @@
 package fuzs.fluidcombat.mixin.client;
 
-import fuzs.fluidcombat.helper.BlockStanceHelper;
+import fuzs.fluidcombat.helper.GuardStanceHelper;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -30,7 +30,7 @@ abstract class LivingEntityMixin extends Entity {
     @Inject(method = "isBlocking", at = @At("HEAD"), cancellable = true)
     private void fakeBlockingForGuardStance(CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof Player player) {
-            if (BlockStanceHelper.isGuarding(player)) {
+            if (GuardStanceHelper.isGuarding(player)) {
                 cir.setReturnValue(true);
             }
         }

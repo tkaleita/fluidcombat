@@ -8,8 +8,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 
-import fuzs.fluidcombat.helper.BlockStanceHelper;
-import fuzs.fluidcombat.helper.DebugTransform;
+import fuzs.fluidcombat.helper.GuardStanceHelper;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -23,7 +22,7 @@ public class ItemInHandRendererMixin {
         float swingProgress, ItemStack stack, float equipProgress, PoseStack poseStack,
         MultiBufferSource bufferSource, int light, CallbackInfo ci) 
     {
-        if (BlockStanceHelper.isGuarding(player) &&
+        if (GuardStanceHelper.isGuarding(player) &&
             hand == InteractionHand.MAIN_HAND) {//player.getUsedItemHand()) {
 
             //float sign = hand == InteractionHand.MAIN_HAND ? 1.0F : -1.0F;
