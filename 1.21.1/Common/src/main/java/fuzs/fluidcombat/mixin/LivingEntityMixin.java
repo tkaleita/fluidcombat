@@ -19,8 +19,10 @@ import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -77,7 +79,16 @@ abstract class LivingEntityMixin extends Entity {
         index = 0
     )
     private double onScaleKnockback(double originalStrength) {
-        return originalStrength * 0.5D;
+        return originalStrength * 0.35d;
+    }
+
+    @ModifyConstant(
+        method = "knockback",
+        constant = @Constant(doubleValue = 0.4D)
+    )
+    private double tweakVerticalKnockback(double original) {
+        // return original * 0.5D; // for half lift
+        return 0.15d;             // for zero lift
     }
 
     @Inject(method = "isDamageSourceBlocked", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/damagesource/DamageSource;getSourcePosition()Lnet/minecraft/world/phys/Vec3;", shift = At.Shift.BEFORE), cancellable = true)
