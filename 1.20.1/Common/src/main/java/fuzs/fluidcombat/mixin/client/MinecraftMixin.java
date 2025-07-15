@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
 
@@ -49,7 +50,6 @@ abstract class MinecraftMixin {
 
     @Inject(method = "startAttack", at = @At("RETURN"))//, target = "Lnet/minecraft/client/player/LocalPlayer;resetAttackStrengthTicker()V", shift = At.Shift.BEFORE), cancellable = true)
     private void startAttack(CallbackInfoReturnable<Boolean> callback) {
-
         HitResult hit = Minecraft.getInstance().hitResult;
         if (hit != null && hit.getType() == HitResult.Type.BLOCK) return;
 

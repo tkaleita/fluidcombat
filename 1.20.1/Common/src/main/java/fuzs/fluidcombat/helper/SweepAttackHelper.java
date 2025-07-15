@@ -8,12 +8,10 @@ import fuzs.fluidcombat.particles.ModParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -22,14 +20,16 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.ClipContext;
@@ -41,6 +41,8 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Math;
 import org.joml.Vector3f;
+
+import com.google.common.collect.Multimap;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -65,7 +67,10 @@ public class SweepAttackHelper {
         float attackDamage = (float) player.getAttribute(Attributes.ATTACK_DAMAGE).getValue();
         if (attackDamage > 0.0F) {
             double reach = player.getAttributeValue(CommonAbstractions.INSTANCE.getAttackRangeAttribute());
-
+            player.displayClientMessage(
+                Component.literal("[SweepDebug] Reach: " + reach), 
+                false  // false = chat, true = action bar
+            );
             var list = getEntitiesInSweepCone(player, reach);
             sweepAttack(player, list, attackDamage, target);
         }
@@ -74,7 +79,9 @@ public class SweepAttackHelper {
     }
     
     private static void sweepAttack(Player player, List<Entity> list, float attackDamage, @Nullable Entity target) {
-        float sweepingAttackDamage = 1.0F + (float) player.getAttributeValue(Attributes.SWEEPING_DAMAGE_RATIO) * attackDamage;
+        float sweepingDamageRatio = 0.5f; // older Minecraft default
+        //float sweepingAttackDamage = 1.0F + (float) player.getAttributeValue(Attributes.SWEEPING_DAMAGE_RATIO) * attackDamage;
+        float sweepingAttackDamage = 1.0F;
         DamageSource damageSource = player.damageSources().playerAttack(player);
 
         for (Entity entity : list) {
@@ -84,7 +91,13 @@ public class SweepAttackHelper {
                 continue;
             };
             
-            float enchantedSweepDamage = player.getEnchantedDamage(entity, sweepingAttackDamage, damageSource);
+            //float enchantedSweepDamage = player.getEnchantedDamage(entity, sweepingAttackDamage, damageSource);
+            float enchantedSweepDamage = sweepingAttackDamage;
+            if (entity instanceof LivingEntity livingEntity) {
+                float bonus = EnchantmentHelper.getDamageBonus(player.getMainHandItem(), livingEntity.getMobType());
+                enchantedSweepDamage += bonus;
+            }
+
             var sound = SoundEvents.PLAYER_ATTACK_WEAK;
             if (isCrit) {
                 sound = SoundEvents.PLAYER_ATTACK_STRONG;
@@ -106,8 +119,9 @@ public class SweepAttackHelper {
                 parent.hurt(part, damageSource, enchantedSweepDamage);
             }
 
-            if (player.level() instanceof ServerLevel serverLevel) {
-                EnchantmentHelper.doPostAttackEffects(serverLevel, entity, damageSource);
+            if (player.level() instanceof ServerLevel serverLevel && entity instanceof LivingEntity livingEntity) {
+                EnchantmentHelper.doPostHurtEffects(livingEntity, player);
+                EnchantmentHelper.doPostDamageEffects(player, livingEntity);
             }
 
             // play hit sound
@@ -124,12 +138,17 @@ public class SweepAttackHelper {
         }
     }
 
+    private static SimpleParticleType sweep, sweepReverse;
+    public static void initParticles(SimpleParticleType normal, SimpleParticleType reverse) {
+        sweep = normal;
+        sweepReverse = reverse;
+    }
     public static void spawnSweepAttackEffects(Player player, Level level) {
         Minecraft mc = Minecraft.getInstance();
         ParticleEngine pe = mc.particleEngine;
 
         // reverse or normal?
-        var chosenSweep = Math.random() > 0.5f ? ModParticles.CUSTOM_SWEEP : ModParticles.CUSTOM_SWEEP_REVERSE;
+        var chosenSweep = Math.random() > 0.5f ? sweep : sweepReverse;
 
         // actually spawn sweep attack particle
         sweepParticle = pe.createParticle(chosenSweep,
@@ -140,9 +159,7 @@ public class SweepAttackHelper {
 
         // if weapon has fire aspect, make it ORANGE
         ItemStack stack = player.getMainHandItem();
-        Registry<Enchantment> enchantmentRegistry = level.registryAccess().registryOrThrow(Registries.ENCHANTMENT);
-        Holder<Enchantment> fireAspect = enchantmentRegistry.getHolderOrThrow(Enchantments.FIRE_ASPECT);
-        int fireAspectLevel = EnchantmentHelper.getItemEnchantmentLevel(fireAspect, stack);
+        int fireAspectLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FIRE_ASPECT, stack);
         if (fireAspectLevel > 0) {
             // spawn a smaller secondary particle!!
             secondarySweepParticle = pe.createParticle(chosenSweep,
@@ -181,10 +198,8 @@ public class SweepAttackHelper {
     public static List<Entity> getEntitiesInSweepCone(Player player, double reach) {
         double normalizedReach = Mth.clamp((reach - 1.0) / (6.0 - 1.0), 0.0, 1.0);
         double radius = Mth.lerp(1.0 - normalizedReach, minSweep, maxSweep);
-        //System.out.println("sweep attack triggered!! reach:" + reach + "radius:" + radius);
 
-        if (FluidCombat.CONFIG.get(ClientConfig.class).showSweepTubeParticles)
-            drawSweepTube(player, reach, radius);
+        drawSweepTube(player, reach, radius);
 
         Vec3 eyePos = player.getEyePosition();
         Vec3 lookVec = player.getLookAngle().normalize();
@@ -243,10 +258,8 @@ public class SweepAttackHelper {
             potentialTargets = new ArrayList<>(potentialTargets);
 
             // limit entities hit
-            int baseLimit = 3;
-            Registry<Enchantment> enchantmentRegistry = level.registryAccess().registryOrThrow(Registries.ENCHANTMENT);
-            Holder<Enchantment> sweepingEdge = enchantmentRegistry.getHolderOrThrow(Enchantments.SWEEPING_EDGE);
-            int sweepingLevel = EnchantmentHelper.getItemEnchantmentLevel(sweepingEdge, player.getMainHandItem());
+            int baseLimit = 3;;
+            int sweepingLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SWEEPING_EDGE, player.getMainHandItem());
             int maxTargets = baseLimit + sweepingLevel;
 
             // Sort by distance
@@ -327,13 +340,12 @@ public class SweepAttackHelper {
 
     public static boolean canSweepAttack(Player player) {
         ItemStack stack = player.getMainHandItem();
-        var components = stack.getComponents();
+        if (stack.isEmpty()) return false;
 
-        if (!components.has(DataComponents.ATTRIBUTE_MODIFIERS)) return false;
+        Multimap<Attribute, AttributeModifier> modifiers = stack.getAttributeModifiers(EquipmentSlot.MAINHAND);
+        if (modifiers.isEmpty()) return false;
 
-        var modifiers = components.get(DataComponents.ATTRIBUTE_MODIFIERS);
-        if (modifiers == null) return false;
-
-        return modifiers.modifiers().stream().anyMatch(x -> x.attribute() == Attributes.ATTACK_DAMAGE);
+        return modifiers.containsKey(Attributes.ATTACK_DAMAGE);
     }
+
 }

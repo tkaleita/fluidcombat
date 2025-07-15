@@ -1,31 +1,23 @@
 package fuzs.fluidcombat.client;
 
+import fuzs.fluidcombat.client.handler.AttributesTooltipHandler;
 import fuzs.fluidcombat.client.handler.AutoAttackHandler;
-import fuzs.fluidcombat.client.handler.RenderOffhandItemHandler;
 import fuzs.fluidcombat.client.handler.ShieldIndicatorHandler;
 import fuzs.puzzleslib.api.client.core.v1.ClientModConstructor;
-import fuzs.puzzleslib.api.client.event.v1.entity.player.InteractionInputEvents;
-import fuzs.puzzleslib.api.client.event.v1.gui.RenderGuiLayerEvents;
-import fuzs.puzzleslib.api.client.event.v1.renderer.RenderHandEvents;
+import fuzs.puzzleslib.api.client.event.v1.*;
 
 public class FluidCombatClient implements ClientModConstructor {
 
     @Override
     public void onConstructMod() {
-        registerEventHandlers();
+        registerHandlers();
     }
 
-    private static void registerEventHandlers() {
-        RenderGuiLayerEvents.before(RenderGuiLayerEvents.CROSSHAIR).register(
-                ShieldIndicatorHandler::onBeforeRenderGuiLayer);
-        RenderGuiLayerEvents.after(RenderGuiLayerEvents.CROSSHAIR).register(
-                ShieldIndicatorHandler.onAfterRenderGuiLayer(RenderGuiLayerEvents.CROSSHAIR));
-        RenderGuiLayerEvents.before(RenderGuiLayerEvents.HOTBAR).register(
-                ShieldIndicatorHandler::onBeforeRenderGuiLayer);
-        RenderGuiLayerEvents.after(RenderGuiLayerEvents.HOTBAR).register(
-                ShieldIndicatorHandler.onAfterRenderGuiLayer(RenderGuiLayerEvents.HOTBAR));
-        InteractionInputEvents.ATTACK.register(AutoAttackHandler::onAttackInteraction);
-        //ClientTickEvents.START.register(AutoAttackHandler::onStartTick);
-        RenderHandEvents.OFF_HAND.register(RenderOffhandItemHandler::onRenderOffHand);
+    private static void registerHandlers() {
+        RenderGuiElementEvents.before(fuzs.puzzleslib.api.client.event.v1.RenderGuiElementEvents.CROSSHAIR).register(ShieldIndicatorHandler::onBeforeRenderGuiElement);
+        RenderGuiElementEvents.after(fuzs.puzzleslib.api.client.event.v1.RenderGuiElementEvents.CROSSHAIR).register((minecraft, guiGraphics, tickDelta, screenWidth, screenHeight) -> ShieldIndicatorHandler.onAfterRenderGuiElement(RenderGuiElementEvents.CROSSHAIR, minecraft, guiGraphics, tickDelta, screenWidth, screenHeight));
+        RenderGuiElementEvents.before(RenderGuiElementEvents.HOTBAR).register(ShieldIndicatorHandler::onBeforeRenderGuiElement);
+        ItemTooltipCallback.EVENT.register(AttributesTooltipHandler::onItemTooltip);
+        InteractionInputEvents.ATTACK_V2.register(AutoAttackHandler::onAttackInteraction);
     }
 }

@@ -1,0 +1,24 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url "https://maven.architectury.dev/" }
+        maven { url "https://maven.fabricmc.net/" }
+        maven { url "https://maven.neoforged.net/releases/" }
+        maven { url "https://maven.minecraftforge.net/" }
+    }
+    resolutionStrategy {
+        eachPlugin { pluginRequest ->
+            if (pluginRequest.id == "dev.architectury.loom") {
+                // point that ID to the real Maven coords
+                useModule("dev.architectury:architectury-loom-gradle-plugin:${pluginRequest.version}")
+            }
+        }
+    }
+}
+
+include "Common"
+include "Fabric"
+//include "NeoForge"
+include "Forge"
+
+apply from: "https://raw.githubusercontent.com/Fuzss/modresources/main/gradle/v1/settings.gradle"

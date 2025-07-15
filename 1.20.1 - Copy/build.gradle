@@ -1,0 +1,21 @@
+plugins {
+    id 'dev.architectury.loom'               version '1.7.0'  apply false
+    id 'architectury-plugin'                version '3.3.0'  apply false
+    id 'com.github.johnrengelman.shadow'    version '7.1.2'  apply false
+    id 'net.darkhax.curseforgegradle'       version '1.0.10' apply false
+    id 'com.modrinth.minotaur'              version '1.3.0'  apply false
+}
+
+/*
+plugins {
+    alias libs.plugins.loom apply false
+    alias libs.plugins.quiltflower apply false
+    alias libs.plugins.forgegradle apply false
+    alias libs.plugins.mixin apply false
+    alias libs.plugins.librarian apply false
+    alias libs.plugins.cursegradle apply false
+    alias libs.plugins.minotaur apply false
+}
+*/
+
+apply from: "https://raw.githubusercontent.com/Fuzss/modresources/main/gradle/${libs.versions.minecraft.get()}/main.gradle"
