@@ -68,9 +68,7 @@ public class SweepAttackHelper {
         float attackDamage = (float) player.getAttribute(Attributes.ATTACK_DAMAGE).getValue();
         if (attackDamage > 0.0F) {
             double reach = player.getAttributeValue(CommonAbstractions.INSTANCE.getAttackRangeAttribute());
-            FluidCombat.LOGGER.info(String.valueOf(reach));
             var list = getEntitiesInSweepCone(player, reach);
-            FluidCombat.LOGGER.info(String.valueOf(list));
             sweepAttack(player, list, attackDamage, target);
         }
         // also resets attack ticker

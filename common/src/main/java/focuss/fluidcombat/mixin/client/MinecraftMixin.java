@@ -31,13 +31,22 @@ abstract class MinecraftMixin {
     @Nullable
     public MultiPlayerGameMode gameMode;
 
-    @Inject(method = "continueAttack", at = @At(value = "HEAD"))//, target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;stopDestroyBlock()V", shift = At.Shift.BEFORE))
+    @Inject(method = "continueAttack", at = @At(value = "HEAD"), cancellable = true)//, target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;stopDestroyBlock()V", shift = At.Shift.BEFORE))
     private void continueAttack(boolean attacking, CallbackInfo callback) {
-        // do not cancel stopDestroyBlock as in combat snapshots
-        // also additional check for an item being used
+        FluidCombat.LOGGER.info("continueAttack");
+
         HitResult hit = Minecraft.getInstance().hitResult;
+        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
+            // we are trying to mine a block!
+            if (attacking && !this.player.isUsingItem() && AutoAttackHandler.readyForAutoAttack(this.player)) {
+                fluidCombat$triggerSweep();
+            }
+            callback.cancel();
+            return;
+        }
+
         if (attacking && !this.player.isUsingItem() && (hit == null || hit.getType() != HitResult.Type.BLOCK)) {
-            if (AutoAttackHandler.readyForAutoAttack(this.player)) { // now takes LocalPlayer
+            if (AutoAttackHandler.readyForAutoAttack(this.player)) {
                 this.startAttack();
             }
         }
@@ -53,6 +62,15 @@ abstract class MinecraftMixin {
 
     @Inject(method = "startAttack", at = @At(value = "HEAD"), cancellable = true)
     private void startAttackHead(CallbackInfoReturnable<Boolean> cir) {
+        FluidCombat.LOGGER.info("startAttackHead");
+
+        HitResult hit = Minecraft.getInstance().hitResult;
+        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
+            // we are trying to mine a block! cancel!!
+            cir.setReturnValue(false);
+            return;
+        }
+
         fluidCombat$wasCharged = player.getAttackStrengthScale(0.5F) >= 1.0F;
         if (!fluidCombat$wasCharged) {
             // block the vanilla attack altogether
@@ -60,12 +78,19 @@ abstract class MinecraftMixin {
         }
     }
 
+    /// because the sweep resets attack cooldown, this NEEDS to be injected at return. to let minecraft handle the normal attack!
     @Inject(method = "startAttack", at = @At(value = "RETURN"))//, target = "Lnet/minecraft/client/player/LocalPlayer;resetAttackStrengthTicker()V", shift = At.Shift.BEFORE), cancellable = true)
     private void startAttack(CallbackInfoReturnable<Boolean> callback) {
+        FluidCombat.LOGGER.info("startAttackReturn");
         HitResult hit = Minecraft.getInstance().hitResult;
         if (hit != null && hit.getType() == HitResult.Type.BLOCK) return;
 
         if (!fluidCombat$wasCharged) return;
+        fluidCombat$triggerSweep();
+    }
+
+    @Unique
+    private void fluidCombat$triggerSweep() {
         ((MultiPlayerGameModeAccessor) this.gameMode).fluidcombat$callEnsureHasSentCarriedItem();
         FluidCombat.NETWORK.sendToServer(new ServerboundSweepAttackMessage((this.player).isShiftKeyDown()));
         // possibly blocked by retainEnergyOnMiss option, we want it regardless in case of triggering a sweep attack
