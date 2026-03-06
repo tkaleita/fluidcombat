@@ -14,7 +14,6 @@ public record ServerboundSweepAttackMessage(boolean usingSecondaryAction) implem
     @Override
     public ServerMessageListener<ServerboundSweepAttackMessage> getHandler() {
         return new ServerMessageListener<>() {
-
             @Override
             public void handle(ServerboundSweepAttackMessage message, MinecraftServer server, ServerGamePacketListenerImpl handler, ServerPlayer player, ServerLevel level) {
                 // mimics behavior of ServerboundInteractPacket as that one is used in combat tests

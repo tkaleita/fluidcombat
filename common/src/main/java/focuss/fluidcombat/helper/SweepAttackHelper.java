@@ -76,9 +76,10 @@ public class SweepAttackHelper {
     }
     
     private static void sweepAttack(Player player, List<Entity> list, float attackDamage, @Nullable Entity target) {
-        float sweepingDamageRatio = 0.5f; // older Minecraft default
+        // TODO
         //float sweepingAttackDamage = 1.0F + (float) player.getAttributeValue(Attributes.SWEEPING_DAMAGE_RATIO) * attackDamage;
-        float sweepingAttackDamage = 1.0F;
+        float baseDamage = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        float sweepingAttackDamage = baseDamage * 0.1f;
         DamageSource damageSource = player.damageSources().playerAttack(player);
 
         for (Entity entity : list) {

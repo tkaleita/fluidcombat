@@ -21,7 +21,8 @@
         "client.MinecraftMixin",
         "client.ItemInHandRendererMixin",
         "client.accessor.MultiPlayerGameModeAccessor",
-        "client.accessor.MinecraftAccessor"
+        "client.accessor.MinecraftAccessor",
+        "client.accessor.LivingEntityAccessor"
     ],
     "server": [
     ],
