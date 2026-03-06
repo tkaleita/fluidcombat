@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface PlayerAccessor {
 
     @Accessor("lastItemInMainHand")
-    ItemStack goldenagecombat$getLastItemInMainHand();
+    ItemStack fluidcombat$getLastItemInMainHand();
 
     @Accessor("lastItemInMainHand")
-    void goldenagecombat$setLastItemInMainHand(ItemStack lastItemInMainHand);
+    void fluidcombat$setLastItemInMainHand(ItemStack lastItemInMainHand);
 }

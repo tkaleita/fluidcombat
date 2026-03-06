@@ -21,6 +21,8 @@ public class ServerConfig implements ConfigCore {
     public boolean upwardsKnockback = false;
     @Config(category = SWEEPING_CATEGORY, description = "Is the sweeping edge enchantment required to perform a sweep attack.")
     public boolean requireSweepingEdge = true;
+    @Config(category = SWEEPING_CATEGORY, description = "Sweep attack will ignore every entity that is not hostile.")
+    public boolean sweepOnlyHitsHostiles = false;
     @Config(category = SWEEPING_CATEGORY, description = "Do not perform sweep attacks when sneaking.")
     public boolean noSweepingWhenSneaking = false;
     @Config(description = "Attacking will no longer stop the player from sprinting. Very useful when swimming, so you can fight underwater without being stopped on every hit.")
@@ -28,9 +30,9 @@ public class ServerConfig implements ConfigCore {
     @Config(description = {"Force all entity hitboxes to have a cubic size of at least 0.9 blocks, making them easier to hit and shoot at.", "This only affects targeting an entity, no collisions or whatsoever. Useful for hitting e.g. bats, rabbits, silverfish, fish, and most baby animals."})
     public boolean minHitboxSize = true;
     @Config(category = COOLDOWN_CATEGORY, description = "Holding down the attack button keeps attacking continuously. No more spam clicking required.")
-    public boolean holdAttackButton = true;
+    public boolean holdAttackButton = false;
     @Config(category = ITEMS_CATEGORY, description = "Add a delay of 4 ticks between throwing snowballs or eggs, just like with ender pearls.")
-    public boolean throwablesDelay = true;
+    public boolean throwablesDelay = false;
     @Config(category = ITEMS_CATEGORY, description = "Eating and drinking both are interrupted if the player is damaged.")
     public boolean eatingInterruption = true;
     @Config(category = ITEMS_CATEGORY, description = "It only takes 20 ticks to drink liquid foods (such as potions, milk, and bottled liquids) instead of 32 or 40.")
@@ -51,6 +53,12 @@ public class ServerConfig implements ConfigCore {
     @Config(category = SHIELD_CATEGORY, description = {"Arc of available protection depending on what angle the attack is coming from and where the player is looking (means the lower this angle the closer you need to be facing your attacker).", "Vanilla protection arc is 180 degrees, which has been reduced to around 100 in combat tests.", "This does not change the protection arc for projectiles which remains at 180 degress."})
     @Config.DoubleRange(min = 0.0, max = 360.0)
     public double shieldProtectionArc = 100.0;
+    @Config(category = SHIELD_CATEGORY, description = {"Enables guarding with weapons. Kinda buggy atm, would not recommend using"})
+    public boolean enableWeaponGuarding = false;
+    @Config(description = {"Adjusts knockback of all entities. Used to balance increased offensive power by letting mobs pressure the player better."})
+    @Config.DoubleRange(min = 0.0, max = 2.0)
+    public double entityKnockbackScale = 0.25;
+
 
     public enum ShieldKnockback {
         NONE, CONSTANT, VARIABLE

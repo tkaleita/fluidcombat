@@ -30,6 +30,7 @@ public class FluidCombat implements ModConstructor {
             .registerServerbound(ServerboundSweepAttackMessage.class)
             .registerServerbound(ServerboundSwingArmMessage.class)
             .registerServerbound(ServerboundBreakBlockMessage.class);
+
     public static final ConfigHolder CONFIG = ConfigHolder.builder(MOD_ID).client(ClientConfig.class).server(ServerConfig.class);
 
     @Override

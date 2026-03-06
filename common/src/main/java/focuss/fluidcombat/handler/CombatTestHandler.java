@@ -31,10 +31,13 @@ public class CombatTestHandler {
             // If the mixin didn’t apply, just bail out
             return;
         }
-        // switching items no longer triggers the attack cooldow1n
+
+        if (!FluidCombat.CONFIG.get(ServerConfig.class).fastSwitching) return;
+
+        // switching items no longer triggers the attack cooldown
         ItemStack stack = player.getMainHandItem();
-        if (!ItemStack.matches(((PlayerAccessor) player).goldenagecombat$getLastItemInMainHand(), stack)) {
-            ((PlayerAccessor) player).goldenagecombat$setLastItemInMainHand(stack.copy());
+        if (!ItemStack.matches(((PlayerAccessor) player).fluidcombat$getLastItemInMainHand(), stack)) {
+            ((PlayerAccessor) player).fluidcombat$setLastItemInMainHand(stack.copy());
             // resets guard stance when switching items
             if (GuardStanceHelper.isGuarding(player)) {
                 GuardStanceHelper.stopGuarding(player);

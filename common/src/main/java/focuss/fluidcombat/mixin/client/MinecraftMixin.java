@@ -2,6 +2,7 @@ package focuss.fluidcombat.mixin.client;
 
 import focuss.fluidcombat.FluidCombat;
 import focuss.fluidcombat.client.handler.AutoAttackHandler;
+import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.helper.SweepAttackHelper;
 import focuss.fluidcombat.mixin.client.accessor.LivingEntityAccessor;
 import focuss.fluidcombat.mixin.client.accessor.MultiPlayerGameModeAccessor;
@@ -13,8 +14,20 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -53,13 +66,17 @@ abstract class MinecraftMixin {
 
     @Inject(method = "continueAttack", at = @At(value = "HEAD"), cancellable = true)//, target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;stopDestroyBlock()V", shift = At.Shift.BEFORE))
     private void continueAttack(boolean attacking, CallbackInfo callback) {
+        if (!FluidCombat.CONFIG.get(ServerConfig.class).holdAttackButton) {
+            callback.cancel();
+            return;
+        }
         //FluidCombat.LOGGER.info("continueAttack");
 
         HitResult hit = Minecraft.getInstance().hitResult;
         if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
             // we are trying to mine a block!
             if (attacking && !this.player.isUsingItem() && AutoAttackHandler.readyForAutoAttack(this.player)) {
-                FluidCombat.LOGGER.info("damageBlock from continueAttack");
+                //FluidCombat.LOGGER.info("damageBlock from continueAttack");
                 fluidCombat$triggerSweep();
                 fluidCombat$damageBlock((BlockHitResult)hit);
             }
@@ -82,9 +99,11 @@ abstract class MinecraftMixin {
         HitResult hit = Minecraft.getInstance().hitResult;
 
         if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
-            // we are trying to mine a block! cancel!!
-            //if (fluidCombat$wasCharged)
-            //    fluidCombat$damageBlock((BlockHitResult)hit);
+            // we are trying to mine a block! cancel!! (unless continueAttack is disabled)
+            if (fluidCombat$wasCharged && !FluidCombat.CONFIG.get(ServerConfig.class).holdAttackButton) {
+                fluidCombat$triggerSweep();
+                fluidCombat$damageBlock((BlockHitResult)hit);
+            }
             cir.setReturnValue(false);
             return;
         }
@@ -107,16 +126,36 @@ abstract class MinecraftMixin {
         fluidCombat$triggerSweep();
     }
 
+    @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
+    private void fluidCombat$offhandAttack(CallbackInfo ci) {
+        if (player == null || level == null) return;
+        ItemStack offhand = player.getOffhandItem();
+        if (!fluidCombat$isWeapon(offhand)) return;
+        if (player.getAttackStrengthScale(0.5F) < 1.0F) {
+            ci.cancel();
+            return;
+        }
+        fluidCombat$triggerSweepOffhand();
+        ci.cancel();
+    }
+
     @Unique
-    private boolean fluidCombat$allowMining() {
-        HitResult hit = Minecraft.getInstance().hitResult;
-        if (hit != null && hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult blockHit) {
-            BlockState state = level.getBlockState(blockHit.getBlockPos());
-            float speed = player.getMainHandItem().getDestroySpeed(state);
-            FluidCombat.LOGGER.info("speed: {}", String.valueOf(speed));
-            return player.hasCorrectToolForDrops(state);
+    private boolean fluidCombat$isWeapon(ItemStack stack) {
+        var modifiers = stack.getAttributeModifiers(EquipmentSlot.OFFHAND);
+        for (AttributeModifier mod : modifiers.get(Attributes.ATTACK_DAMAGE)) {
+            if (mod.getAmount() > 0) return true;
         }
         return false;
+    }
+
+    @Unique
+    private void fluidCombat$triggerSweepOffhand() {
+        SweepAttackHelper.spawnSweepAttackEffects(player, level);
+        player.swing(InteractionHand.OFF_HAND, true);
+        player.resetAttackStrengthTicker();
+        FluidCombat.NETWORK.sendToServer(
+                new ServerboundSweepAttackMessage(true) // mark offhand
+        );
     }
 
     @Unique
@@ -138,10 +177,12 @@ abstract class MinecraftMixin {
         float hardness = state.getDestroySpeed(level, pos);
         if (hardness <= 0) return;
         float speed = player.getDestroySpeed(state);
-        float damagePerTick = speed / hardness / 100;
+        float damagePerTick = speed / hardness / 40f; // maybe add correct tool scaling to this instead of a flat number.
         float cooldownTicks = player.getCurrentItemAttackStrengthDelay();
         float damage = (damagePerTick * cooldownTicks)*1.01f; // just a lil buff for cases like 0.333
         FluidCombat.LOGGER.info(String.valueOf(damage));
+        if (player.isCreative())
+            damage = 100;
         fluidCombat$damage += damage;
 
         // cooldown advance for strong tools
@@ -154,7 +195,7 @@ abstract class MinecraftMixin {
             if (cooldownAdvance > cooldownTicks) cooldownAdvance = cooldownTicks; // max cd
 
             // cap it to max vanilla speed
-            float progressPerTick = speed / (hardness * 50f);
+            float progressPerTick = speed / (hardness * 75f);
             int vanillaTicksToBreak = (int)Math.ceil(1f / progressPerTick);
             float maxAdvance = cooldownTicks - vanillaTicksToBreak;
             if (maxAdvance < 0f) maxAdvance = 0f;
@@ -164,6 +205,8 @@ abstract class MinecraftMixin {
             int ticker = accessor.fluidcombat$getAttackStrengthTicker();
             ticker = Math.min(ticker + (int)cooldownAdvance, (int)cooldownTicks);
             accessor.fluidcombat$setAttackStrengthTicker(ticker);
+            if (player.isCreative())
+                accessor.fluidcombat$setAttackStrengthTicker(100);
 
             FluidCombat.LOGGER.info("smooth CD advance: {}", cooldownAdvance);
         }
@@ -176,11 +219,12 @@ abstract class MinecraftMixin {
                 pos.getZ() + 0.5,
                 sound.getHitSound(),
                 SoundSource.BLOCKS,
-                (sound.getVolume() + 2.0F) / 8.0F,
-                sound.getPitch() * 0.5F,
+                Mth.lerp(fluidCombat$damage, 0.25f, 0.5f) * sound.getVolume(),
+                sound.getPitch(),
                 false
         );
 
+        // update block damage progress
         int stage = (int)(fluidCombat$damage * 10f);
         level.destroyBlockProgress(player.getId(), pos, stage);
 
@@ -189,17 +233,60 @@ abstract class MinecraftMixin {
             level.destroyBlockProgress(player.getId(), pos, -1);
             fluidCombat$damage = 0f;
             fluidCombat$damagePos = null;
+            return;
+        }
+
+        // block hit particle effects if block isnt destroyed
+        for (int i = 0; i < 50*damage; i++) {
+            double x = pos.getX() + level.random.nextDouble();
+            double y = pos.getY() + level.random.nextDouble();
+            double z = pos.getZ() + level.random.nextDouble();
+            level.addParticle(
+                    new BlockParticleOption(ParticleTypes.BLOCK, state),
+                    x, y, z,
+                    0.0, 0.0, 0.0
+            );
         }
     }
 
     @Unique
     private void fluidCombat$triggerSweep() {
+        // check damage of current item
+        ItemStack stack = player.getMainHandItem();
+        float weaponDamage = 0f;
+        var modifiers = stack.getAttributeModifiers(EquipmentSlot.MAINHAND);
+        for (AttributeModifier mod : modifiers.get(Attributes.ATTACK_DAMAGE)) {
+            weaponDamage += (float) mod.getAmount();
+        }
+        FluidCombat.LOGGER.info("Weapon damage: {}", weaponDamage);
+
+        if (weaponDamage > 0.0F) { // do all effects if current item has damage attribute!
+            SweepAttackHelper.spawnSweepAttackEffects(player, level);
+        } else {
+            // play a small, quieter version of the sound
+            float pitch = 2f + RandomSource.create().nextFloat() * 0.1F; // random pitch +-0.1f i think
+            level.playSound(
+                    player,
+                    player.getX(),
+                    player.getY(),
+                    player.getZ(),
+                    SoundEvents.PLAYER_ATTACK_SWEEP,
+                    SoundSource.PLAYERS,
+                    0.1f, // volume
+                    pitch
+            );
+        }
+
+        this.player.resetAttackStrengthTicker();
+        player.swing(InteractionHand.MAIN_HAND, true); // force full swing animation
+
+        // if we cant actually sweep. dont send the info to the server
+        if (player.isCrouching() && FluidCombat.CONFIG.get(ServerConfig.class).noSweepingWhenSneaking)
+            return;
+        if (EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SWEEPING_EDGE, player.getMainHandItem()) <= 0 && FluidCombat.CONFIG.get(ServerConfig.class).requireSweepingEdge)
+            return;
+
         ((MultiPlayerGameModeAccessor) this.gameMode).fluidcombat$callEnsureHasSentCarriedItem();
         FluidCombat.NETWORK.sendToServer(new ServerboundSweepAttackMessage((this.player).isShiftKeyDown()));
-        // possibly blocked by retainEnergyOnMiss option, we want it regardless in case of triggering a sweep attack
-        this.player.resetAttackStrengthTicker();
-        FluidCombat.LOGGER.info("resetting Strength ticker!");
-        SweepAttackHelper.spawnSweepAttackEffects(player, level);
-        player.swing(InteractionHand.MAIN_HAND, true); // force full swing animation
     }
 }

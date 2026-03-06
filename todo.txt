@@ -1,3 +1,2 @@
--config to configure basically everything
--particles and better sfx for block damage
 -some mod compatibility? like crit chance from spartan weaponry
+-improve tube particle look (it fuckin SUCKS)

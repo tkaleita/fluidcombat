@@ -39,7 +39,7 @@ abstract class LivingEntityMixin extends Entity {
         boolean isActualShield = activeItem.getUseAnimation() == UseAnim.BLOCK;
 
         if (isGuardStance) {
-            // 👉 Custom knockback or block effects for guard stance
+            // custom knockback or block effects for guard stance
             this.knockback(0.25, target.getX() - this.getX(), target.getZ() - this.getZ()); // lighter stagger
             GuardStanceHelper.disableGuardStance(player, 60, true);
             player.level().playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 0.75F, 0.9F);

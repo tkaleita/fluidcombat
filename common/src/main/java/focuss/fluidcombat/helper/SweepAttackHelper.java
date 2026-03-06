@@ -3,12 +3,14 @@ package focuss.fluidcombat.helper;
 import focuss.fluidcombat.Constants;
 import focuss.fluidcombat.FluidCombat;
 import focuss.fluidcombat.config.ClientConfig;
+import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.core.CommonAbstractions;
 import focuss.fluidcombat.particles.CustomSweepParticle;
 import focuss.fluidcombat.particles.ModParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
@@ -20,15 +22,13 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -69,6 +69,8 @@ public class SweepAttackHelper {
         if (attackDamage > 0.0F) {
             double reach = player.getAttributeValue(CommonAbstractions.INSTANCE.getAttackRangeAttribute());
             var list = getEntitiesInSweepCone(player, reach);
+            if (FluidCombat.CONFIG.get(ClientConfig.class).showSweepTubeParticles)
+                drawSweepTube(player, reach);
             sweepAttack(player, list, attackDamage, target);
         }
         // also resets attack ticker
@@ -76,10 +78,10 @@ public class SweepAttackHelper {
     }
     
     private static void sweepAttack(Player player, List<Entity> list, float attackDamage, @Nullable Entity target) {
-        // TODO
-        //float sweepingAttackDamage = 1.0F + (float) player.getAttributeValue(Attributes.SWEEPING_DAMAGE_RATIO) * attackDamage;
+        float sweepingLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SWEEPING_EDGE, player.getMainHandItem());
+
         float baseDamage = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE);
-        float sweepingAttackDamage = baseDamage * 0.1f;
+        float sweepingAttackDamage = baseDamage * (0.1f+(sweepingLevel*0.1f));
         DamageSource damageSource = player.damageSources().playerAttack(player);
 
         for (Entity entity : list) {
@@ -131,7 +133,7 @@ public class SweepAttackHelper {
                 sound,
                 SoundSource.PLAYERS,
                 1.0F,  // volume
-                0.9F + player.level().random.nextFloat() * 0.2F // slightly varied pitch
+                0.9f + player.level().random.nextFloat() * 0.2F // slightly varied pitch
             );
         }
     }
@@ -142,6 +144,32 @@ public class SweepAttackHelper {
         sweepReverse = reverse;
     }
     public static void spawnSweepAttackEffects(Player player, Level level) {
+        // prepare for playing sweep sound
+        float minDamage = 1.0f;
+        float maxDamage = 10.0f;
+        float attackDamage = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        float normalizedDamage = Mth.clamp((attackDamage - minDamage) / (maxDamage - minDamage), 0f, 1f);
+
+        float maxPitch = 1f; // weak weapon
+        float minPitch = 0.25f; // heavy weapon
+        float weaponPitch = Mth.lerp(normalizedDamage, maxPitch, minPitch);
+
+        // play sweep attack sound
+        float pitch = weaponPitch + RandomSource.create().nextFloat() * 0.1F; // Random pitch between 0.65 and 0.85
+        FluidCombat.LOGGER.info(String.valueOf(pitch));
+        level.playSound(
+                player,
+                player.getX(),
+                player.getY(),
+                player.getZ(),
+                SoundEvents.PLAYER_ATTACK_SWEEP,
+                SoundSource.PLAYERS,
+                0.35f, // volume
+                pitch
+        );
+
+        if (!FluidCombat.CONFIG.get(ClientConfig.class).showSweepAttackParticles) return;
+
         Minecraft mc = Minecraft.getInstance();
         ParticleEngine pe = mc.particleEngine;
 
@@ -167,7 +195,6 @@ public class SweepAttackHelper {
             0.0, 0.0, 0.0);
             secondarySweepParticle.scale(0.75f);
             secondarySweepParticle.setColor(1.0f, 0.4f, 0.1f); // fiery orange
-
         }
 
         // if crit is possible, turn particle red
@@ -178,27 +205,11 @@ public class SweepAttackHelper {
         if (sweepParticle instanceof CustomSweepParticle) {
             ((CustomSweepParticle)sweepParticle).setAngle(0);
         }
-
-        // play sweep attack sound
-        float pitch = 0.75F + RandomSource.create().nextFloat() * 0.2F; // Random pitch between 0.65 and 0.85
-        level.playSound(
-            player,
-            player.getX(),
-            player.getY(),
-            player.getZ(),
-            SoundEvents.PLAYER_ATTACK_SWEEP,
-            SoundSource.PLAYERS,
-            0.50F, // volume
-            pitch
-        );
     }
 
     public static List<Entity> getEntitiesInSweepCone(Player player, double reach) {
         double normalizedReach = Mth.clamp((reach - 1.0) / (6.0 - 1.0), 0.0, 1.0);
         double radius = Mth.lerp(1.0 - normalizedReach, minSweep, maxSweep);
-
-        if (FluidCombat.CONFIG.get(ClientConfig.class).showSweepTubeParticles)
-            drawSweepTube(player, reach, radius);
 
         Vec3 eyePos = player.getEyePosition();
         Vec3 lookVec = player.getLookAngle().normalize();
@@ -218,6 +229,9 @@ public class SweepAttackHelper {
                 }
                 // pet-check (doesnt fit in above filter)
                 if (entity instanceof TamableAnimal tamable && tamable.isOwnedBy(player)) return false;
+                // config stuff check
+                boolean hostile = entity instanceof Enemy || (entity instanceof Mob mob && mob.getTarget() == player);
+                if (FluidCombat.CONFIG.get(ServerConfig.class).sweepOnlyHitsHostiles && !hostile) return false;
 
                 AABB bb = entity.getBoundingBox();
                 Vec3 entityPos = new Vec3(
@@ -257,7 +271,7 @@ public class SweepAttackHelper {
             potentialTargets = new ArrayList<>(potentialTargets);
 
             // limit entities hit
-            int baseLimit = 3;;
+            int baseLimit = 3;
             int sweepingLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SWEEPING_EDGE, player.getMainHandItem());
             int maxTargets = baseLimit + sweepingLevel;
 
@@ -271,41 +285,92 @@ public class SweepAttackHelper {
             return potentialTargets;
     }
 
-    public static void drawSweepTube(Player player, double reach, double radius) {
+    public static void drawSweepTube(Player player, double reach) {
         if (!(player.level() instanceof ServerLevel serverLevel)) return;
 
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle().normalize();
 
+        double normalizedReach = Mth.clamp((reach - 1.0) / (6.0 - 1.0), 0.0, 1.0);
+        double radius = Mth.lerp(1.0 - normalizedReach, minSweep, maxSweep);
+
         int steps = 20;
         double stepSize = reach / steps;
 
-        var particle = new DustParticleOptions(
-            new Vector3f(0.75F, 0.75F, 0.75F), // RGB (white in this case)
-            0.5F // size (default is 1.0F)
-        );
+        // particle color (unchanged behavior)
+        var particleColor = new Vector3f(0.75f, 0.75f, 0.75f);
+        if (!player.onGround() && player.getDeltaMovement().y < -0.15) {
+            particleColor = new Vector3f(0.6f, 0.1f, 0.1f);
+        }
+
+        var particle = new DustParticleOptions(particleColor, 0.25F);
+
+        // build orientation frame
+        Vec3 up = new Vec3(0, 1, 0);
+        if (Math.abs(look.dot(up)) > 0.99) up = new Vec3(1, 0, 0);
+
+        Vec3 right = look.cross(up).normalize();
+        Vec3 perpUp = right.cross(look).normalize();
+
+        // rotation (shared by tube + cross)
+        double rotation = player.tickCount * 0.05;
+
+        double cos = Math.cos(rotation);
+        double sin = Math.sin(rotation);
+
+        Vec3 r = right.scale(cos).add(perpUp.scale(sin));
+        Vec3 u = right.scale(-sin).add(perpUp.scale(cos));
 
         for (int i = 0; i <= steps; i++) {
             Vec3 point = eye.add(look.scale(i * stepSize));
+            drawCircleParticles(serverLevel, particle, point, r, u, radius, 8);
+        }
 
-            // Particle cloud at each step
-            drawCircleParticles(serverLevel, particle, point, look, radius, 8);
+        Vec3 end = eye.add(look.scale(reach));
+        drawEndCross(serverLevel, particle, end, r, u, radius, 8);
+    }
+
+    private static void drawCircleParticles(ServerLevel level, DustParticleOptions particle, Vec3 center, Vec3 right, Vec3 up, double radius, int segments) {
+        for (int i = 0; i < segments; i++) {
+            double angle = (2 * Math.PI / segments) * i;
+            Vec3 offset = right.scale(Math.cos(angle))
+                    .add(up.scale(Math.sin(angle)))
+                    .scale(radius);
+            Vec3 particlePos = center.add(offset);
+            level.sendParticles(
+                    particle,
+                    particlePos.x,
+                    particlePos.y,
+                    particlePos.z,
+                    1,
+                    0, 0, 0,
+                    2
+            );
         }
     }
 
-    private static void drawCircleParticles(ServerLevel level, DustParticleOptions particle, Vec3 center, Vec3 forward, double radius, int segments) {
-        // Local coordinate frame for rotating around forward
-        Vec3 up = new Vec3(0, 1, 0);
-        if (Math.abs(forward.dot(up)) > 0.99) up = new Vec3(1, 0, 0); // Avoid near-parallel
-        Vec3 right = forward.cross(up).normalize();
-        Vec3 perpUp = right.cross(forward).normalize();
+    private static void drawEndCross(ServerLevel level, DustParticleOptions particle, Vec3 center, Vec3 right, Vec3 up, double radius, int segments) {
+        Vec3[] dirs = new Vec3[]{
+                right,
+                up,
+                right.add(up).normalize(),
+                right.subtract(up).normalize()
+        };
 
-        for (int i = 0; i < segments; i++) {
-            double angle = (2 * Math.PI / segments) * i;
-            Vec3 offset = right.scale(Math.cos(angle)).add(perpUp.scale(Math.sin(angle))).scale(radius);
-            Vec3 particlePos = center.add(offset);
-
-            level.sendParticles(particle, particlePos.x, particlePos.y, particlePos.z, 1, 0, 0, 0, 0);
+        for (Vec3 dir : dirs) {
+            for (int i = -segments; i <= segments; i++) {
+                double t = (double) i / segments;
+                Vec3 pos = center.add(dir.scale(radius * t));
+                level.sendParticles(
+                        particle,
+                        pos.x,
+                        pos.y,
+                        pos.z,
+                        1,
+                        0, 0, 0,
+                        0
+                );
+            }
         }
     }
 
@@ -347,4 +412,32 @@ public class SweepAttackHelper {
         return modifiers.containsKey(Attributes.ATTACK_DAMAGE);
     }
 
+    // currently unused...
+    public static void previewSweepTargets(Player player) {
+        Level level = player.level();
+        if (level == null) return;
+
+        if (!canSweepAttack(player)) return;
+
+        // only show preview when attack is almost ready
+        //if (player.getAttackStrengthScale(0) < 0.9f) return;
+
+        double reach = player.getAttributeValue(CommonAbstractions.INSTANCE.getAttackRangeAttribute());
+
+        List<Entity> targets = getEntitiesInSweepCone(player, reach);
+
+        for (Entity entity : targets) {
+
+            double x = entity.getX();
+            double y = entity.getY() + entity.getEyeHeight() + 0.5;
+            double z = entity.getZ();
+
+            // spawn a single visible particle
+             level.addParticle(
+                    ParticleTypes.CRIT,
+                    x, y, z,
+                    0.0, 0.0, 0.0
+            );
+        }
+    }
 }

@@ -55,6 +55,11 @@ public class FluidCombatForgeClient {
                     mc.level
                 );
             }
+
+            // preview sweep targets every X ticks!
+            /*if (mc.player.tickCount % 3 == 0) {
+                SweepAttackHelper.previewSweepTargets(mc.player);
+            }*/
         });
     }
 }

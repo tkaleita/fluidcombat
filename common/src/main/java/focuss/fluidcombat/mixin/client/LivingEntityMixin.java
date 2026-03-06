@@ -1,5 +1,7 @@
 package focuss.fluidcombat.mixin.client;
 
+import focuss.fluidcombat.FluidCombat;
+import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.helper.GuardStanceHelper;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -48,7 +50,7 @@ abstract class LivingEntityMixin extends Entity {
         index = 0
     )
     private double onScaleKnockback(double originalStrength) {
-        return originalStrength * 0.35d;
+        return originalStrength * FluidCombat.CONFIG.get(ServerConfig.class).entityKnockbackScale;
     }
 
     @ModifyConstant(
@@ -57,6 +59,6 @@ abstract class LivingEntityMixin extends Entity {
     )
     private double tweakVerticalKnockback(double original) {
         // return original * 0.5D; // for half lift
-        return 0.15d;             // for zero lift
+        return 0.25d;             // for zero lift
     }
 }

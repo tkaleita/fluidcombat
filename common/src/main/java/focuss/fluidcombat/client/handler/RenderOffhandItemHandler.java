@@ -15,12 +15,13 @@ import net.minecraft.world.item.ShieldItem;
 public class RenderOffhandItemHandler {
 
     public static EventResult onRenderOffHand(ItemInHandRenderer itemInHandRenderer, AbstractClientPlayer player, HumanoidArm humanoidArm, ItemStack itemStack, PoseStack poseStack, MultiBufferSource multiBufferSource, int combinedLight, float partialTick, float interpolatedPitch, float swingProgress, float equipProgress) {
-        if (!itemStack.isEmpty() && FluidCombat.CONFIG.get(ClientConfig.class).hiddenOffhandItems.contains(itemStack.getItem())) {
+        // TODO disabled currently
+        /*if (!itemStack.isEmpty() && FluidCombat.CONFIG.get(ClientConfig.class).hiddenOffhandItems.contains(itemStack.getItem())) {
             if (!player.isUsingItem() || player.getUsedItemHand() != InteractionHand.OFF_HAND ||
                     itemStack.getItem() instanceof ShieldItem && FluidCombat.CONFIG.get(ClientConfig.class).shieldIndicator) {
                 return EventResult.INTERRUPT;
             }
-        }
+        }*/
         return EventResult.PASS;
     }
 }

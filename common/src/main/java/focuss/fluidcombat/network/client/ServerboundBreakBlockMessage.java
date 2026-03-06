@@ -7,6 +7,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -41,6 +43,10 @@ public record ServerboundBreakBlockMessage(int x, int y, int z)
                     state.getBlock().playerDestroy(level, player, pos, state, blockEntity, player.getMainHandItem());
                 }
                 level.removeBlock(pos, false);
+
+                // give tools damage!
+                ItemStack stack = player.getMainHandItem();
+                stack.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND));
             }
         };
     }

@@ -6,6 +6,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.collect.Multimap;
 
+import focuss.fluidcombat.FluidCombat;
+import focuss.fluidcombat.config.ServerConfig;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -14,11 +16,14 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.UseAnim;
 
+import static focuss.fluidcombat.FluidCombat.CONFIG;
+
 public class GuardStanceHelper {
     private static final Set<UUID> GUARDING_PLAYERS = ConcurrentHashMap.newKeySet();
 
     // should DRY this but it causes recursion so fuck it
     public static boolean canUseGuardStance(Player player) {
+        if (!CONFIG.get(ServerConfig.class).enableWeaponGuarding) return false;
         ItemStack main = player.getMainHandItem();
         if (main.isEmpty()) return false; // we have no item, can't block
         ItemStack off = player.getOffhandItem();
@@ -40,6 +45,7 @@ public class GuardStanceHelper {
 
     // overload for specific itemstack
     public static boolean canUseGuardStance(Player player, ItemStack stack) {
+        if (!CONFIG.get(ServerConfig.class).enableWeaponGuarding) return false;
         if (stack.isEmpty()) return false;
         if (stack.getItem().getUseAnimation(stack) == UseAnim.BLOCK) return false;
 

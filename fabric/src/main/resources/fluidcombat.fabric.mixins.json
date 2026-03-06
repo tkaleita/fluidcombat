@@ -3,6 +3,7 @@
     "minVersion": "0.8",
     "package": "focuss.fluidcombat.mixin",
     "refmap": "${mod_id}.refmap.json",
+    "plugin": "focuss.fluidcombat.mixin.ModMixinConfigPlugin",
     "compatibilityLevel": "JAVA_17",
     "mixins": [
     ],
