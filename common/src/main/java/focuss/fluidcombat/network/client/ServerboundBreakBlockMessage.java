@@ -41,9 +41,9 @@ public record ServerboundBreakBlockMessage(EquipmentSlot slot, int x, int y, int
                 level.levelEvent(2001, pos, Block.getId(state));
 
                 ItemStack stack = player.getItemBySlot(message.slot());
-                boolean drop = stack.isCorrectToolForDrops(state);
+                boolean drop = !state.requiresCorrectToolForDrops() || stack.isCorrectToolForDrops(state);
                 if (drop) {
-                    state.getBlock().playerDestroy(level, player, pos, state, blockEntity, player.getMainHandItem());
+                    state.getBlock().playerDestroy(level, player, pos, state, blockEntity, stack);
                 }
                 level.removeBlock(pos, false);
 

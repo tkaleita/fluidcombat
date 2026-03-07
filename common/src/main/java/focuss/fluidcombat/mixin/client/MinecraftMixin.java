@@ -119,15 +119,32 @@ abstract class MinecraftMixin {
         if (player == null || level == null) return;
         if (!fluidCombat$isWeapon(EquipmentSlot.OFFHAND)) return;
 
+        // if we can interact with the block were targeting, dont attack and interact instead
+        HitResult hit = Minecraft.getInstance().hitResult;
+        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
+            BlockHitResult blockHit = (BlockHitResult) hit;
+            BlockState state = level.getBlockState(blockHit.getBlockPos());
+            if (state.use(level, player, InteractionHand.MAIN_HAND, blockHit).consumesAction()) {
+                return;
+            }
+        }
+
         ItemStack mainHand = player.getMainHandItem();
         Item item = mainHand.getItem();
-        boolean mainhandIsWeapon = fluidCombat$isWeapon(EquipmentSlot.MAINHAND);
-        boolean mainhandHasUse = mainHand.isEdible() || mainHand.getUseAnimation() != UseAnim.NONE || mainHand.getUseDuration() > 0
-                || item instanceof SpawnEggItem || item instanceof PotionItem || item instanceof BlockItem
-                || item instanceof EnderpearlItem || item instanceof EnderEyeItem || item instanceof BucketItem
-                || item instanceof ShearsItem;
 
-        // rule logic
+        boolean mainhandIsWeapon = fluidCombat$isWeapon(EquipmentSlot.MAINHAND);
+        boolean mainhandHasUse =
+                    mainHand.isEdible()
+                    || mainHand.getUseAnimation() != UseAnim.NONE
+                    || mainHand.getUseDuration() > 0
+                    || item instanceof SpawnEggItem
+                    || item instanceof PotionItem
+                    || item instanceof BlockItem
+                    || item instanceof EnderpearlItem
+                    || item instanceof EnderEyeItem
+                    || item instanceof BucketItem
+                    || item instanceof ShearsItem;
+
         if (!mainhandIsWeapon && mainhandHasUse) return;
 
         fluidCombat$triggerAttack(EquipmentSlot.OFFHAND, true);
@@ -195,8 +212,18 @@ abstract class MinecraftMixin {
         BlockPos pos = hit.getBlockPos();
         BlockState state = level.getBlockState(pos);
 
+        // determine destroy speed & cooldown using the correct stack
         ItemStack stack = player.getItemBySlot(slot);
-        float speed = stack.getDestroySpeed(state);
+        float speed;
+        if (slot == EquipmentSlot.MAINHAND) {
+            speed = player.getDestroySpeed(state);
+        } else {
+            ItemStack original = player.getMainHandItem();
+
+            player.setItemSlot(EquipmentSlot.MAINHAND, stack);
+            speed = player.getDestroySpeed(state);
+            player.setItemSlot(EquipmentSlot.MAINHAND, original);
+        }
 
         // reset progress if we changed block
         if (!pos.equals(fluidCombat$damagePos)) {
@@ -208,7 +235,7 @@ abstract class MinecraftMixin {
         float hardness = state.getDestroySpeed(level, pos);
         if (hardness <= 0) return;
         float damagePerTick = speed / hardness / 40f; // maybe add correct tool scaling to this instead of a flat number.
-        float cooldownTicks = player.getCurrentItemAttackStrengthDelay();
+        float cooldownTicks = fluidCombat$getCooldownTicks(player, stack);
         float damage = (damagePerTick * cooldownTicks)*1.01f; // just a lil buff for cases like 0.333
         //FluidCombat.LOGGER.info(String.valueOf(damage));
         if (player.isCreative())

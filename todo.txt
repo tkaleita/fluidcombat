@@ -2,17 +2,12 @@
 -improve tube particle look (it fuckin SUCKS)
 -fully recreate right click being a normal attack (maybe there is a workaround to let minecraft handle this)
 -crits do extra damage to blocks?
--make sure cooldown is correct when using offhand. for damageBlock and sweepAttack
--> damageBlock cooldown apparently just.. works???
 -add alternating attacks when holding left-click
 -remove mining penalty when in air. keep it for underwater though!
 -add extra damage scaling? alongside knockback scaling? for easy balancing?
 -make sweep particle dependent on offhand vs mainhand
 -add upswing? like for 25%, or 50% of the attack CD, hand moves slightly "up", then trigger attack. might feel better? idk
-
-BUGS:
--make right click available when block has an interaction
--destroying blocks with hand drops nothin
--efficiency currently doesnt work
--right click triggers swing animation even with no right click use
--> this means you cant use offhand items like shields.
+-add cooldown indicator that displays correct cooldown
+-fire aspect can set blocks on fire?
+-make mining cancel attack cooldown?
+-> does this mean separate attack and mining CDs?

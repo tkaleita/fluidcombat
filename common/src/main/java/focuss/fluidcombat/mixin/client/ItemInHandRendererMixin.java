@@ -41,5 +41,4 @@ public class ItemInHandRendererMixin {
     private float removeEquipDip(LocalPlayer instance, float v) {
         return 1.0F;
     }
-
 }
