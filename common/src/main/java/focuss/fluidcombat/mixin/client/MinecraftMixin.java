@@ -268,7 +268,7 @@ abstract class MinecraftMixin {
             LivingEntityAccessor accessor = (LivingEntityAccessor)player;
             int ticker = accessor.fluidcombat$getAttackStrengthTicker();
             ticker = Math.min(ticker + (int)cooldownAdvance, (int)cooldownTicks);
-            //accessor.fluidcombat$setAttackStrengthTicker(ticker);
+            accessor.fluidcombat$setAttackStrengthTicker(ticker);
             //FluidCombat.LOGGER.info(String.valueOf(ticker));
             if (player.isCreative())
                 accessor.fluidcombat$setAttackStrengthTicker(100);
