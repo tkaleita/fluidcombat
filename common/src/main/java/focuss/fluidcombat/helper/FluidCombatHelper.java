@@ -9,6 +9,7 @@ import focuss.fluidcombat.particles.CustomSweepParticle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
@@ -41,13 +42,13 @@ import org.joml.Math;
 import org.joml.Vector3f;
 
 import com.google.common.collect.Multimap;
+import org.spongepowered.asm.mixin.Unique;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Vector;
 
-public class SweepAttackHelper {
+public class FluidCombatHelper {
 
     public static Particle sweepParticle;
     public static Particle secondarySweepParticle;
@@ -60,6 +61,7 @@ public class SweepAttackHelper {
     public static double maxSweep = 2;
 
     public static EquipmentSlot lastUsedSlot = EquipmentSlot.MAINHAND;
+    public static float currentMaxCooldownTicks = 20;
 
     public static void initiateSweepAttack(Player player, EquipmentSlot slot) {
         if (!canSweepAttack(player, slot)) return;
@@ -217,6 +219,34 @@ public class SweepAttackHelper {
         return (float)(1.0 + modifier);
     }
 
+    @Unique
+    public static float getCooldownTicks(Player player, ItemStack stack) {
+        if (stack == null) return 0;
+
+        var attributes = player.getAttributes();
+
+        ItemStack main = player.getMainHandItem();
+
+        var mainMods = main.getAttributeModifiers(EquipmentSlot.MAINHAND);
+        var stackMods = stack.getAttributeModifiers(EquipmentSlot.MAINHAND);
+
+        try {
+            attributes.removeAttributeModifiers(mainMods);
+            attributes.addTransientAttributeModifiers(stackMods);
+
+            double attackSpeed = player.getAttributeValue(Attributes.ATTACK_SPEED);
+            if (attackSpeed <= 0) attackSpeed = 0.1;
+
+            float cooldownTicks = (float)(20.0 / attackSpeed);
+            currentMaxCooldownTicks = cooldownTicks;
+            return cooldownTicks;
+
+        } finally {
+            attributes.removeAttributeModifiers(stackMods);
+            attributes.addTransientAttributeModifiers(mainMods);
+        }
+    }
+
     private static SimpleParticleType sweep, sweepReverse;
     public static void initParticles(SimpleParticleType normal, SimpleParticleType reverse) {
         sweep = normal;
@@ -232,11 +262,11 @@ public class SweepAttackHelper {
         float minPitch = 0.25f; // heavy weapon
         float weaponPitch = Mth.lerp(normalizedDamage, maxPitch, minPitch);
 
-        lifetime /= 4; // cause otherwise. very slow
+        lifetime /= 3; // cause otherwise. very slow
 
         // play sweep attack sound
         float pitch = weaponPitch + RandomSource.create().nextFloat() * 0.1F; // Random pitch between 0.65 and 0.85
-        FluidCombat.LOGGER.info("damage: {} | pitch: {}", damage, pitch);
+        //FluidCombat.LOGGER.info("damage: {} | pitch: {}", damage, pitch);
         level.playSound(
                 player,
                 player.getX(),
@@ -256,7 +286,6 @@ public class SweepAttackHelper {
         // reverse or normal?
         //var chosenSweep = Math.random() > 0.5f ? sweep : sweepReverse;
         var chosenSweep = (slot == EquipmentSlot.MAINHAND) ? sweep : sweepReverse;
-        lastUsedSlot = slot;
 
         // actually spawn sweep attack particle
         sweepParticle = pe.createParticle(chosenSweep,
@@ -466,7 +495,7 @@ public class SweepAttackHelper {
     public static void updateSweepAttackParticle(Particle sweepParticle, Player player) {
         if (sweepParticle == null) return;
 
-        float sidewaysOffset = (lastUsedSlot == EquipmentSlot.MAINHAND) ? SweepAttackHelper.sidewaysOffset : -SweepAttackHelper.sidewaysOffset;
+        float sidewaysOffset = (lastUsedSlot == EquipmentSlot.MAINHAND) ? FluidCombatHelper.sidewaysOffset : -FluidCombatHelper.sidewaysOffset;
 
         Vec3 newPos = null;
         if (sweepParticle == secondarySweepParticle) {

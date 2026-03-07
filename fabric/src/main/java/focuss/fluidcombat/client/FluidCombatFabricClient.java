@@ -1,7 +1,7 @@
 package focuss.fluidcombat.client;
 
 import focuss.fluidcombat.FluidCombat;
-import focuss.fluidcombat.helper.SweepAttackHelper;
+import focuss.fluidcombat.helper.FluidCombatHelper;
 import focuss.fluidcombat.particles.CustomSweepParticleProvider;
 import focuss.fluidcombat.particles.CustomSweepReverseParticleProvider;
 import focuss.fluidcombat.particles.ModParticles;
@@ -28,11 +28,11 @@ public class FluidCombatFabricClient implements ClientModInitializer {
 
         // update sweep particle on every tick if it exists
         ClientTickEvents.END.register(client -> {
-            if (SweepAttackHelper.sweepParticle != null && client.player != null) {
-                SweepAttackHelper.updateSweepAttackParticle(SweepAttackHelper.sweepParticle, client.player);
+            if (FluidCombatHelper.sweepParticle != null && client.player != null) {
+                FluidCombatHelper.updateSweepAttackParticle(FluidCombatHelper.sweepParticle, client.player);
             }
-            if (SweepAttackHelper.secondarySweepParticle != null && client.player != null) {
-                SweepAttackHelper.updateSweepAttackParticle(SweepAttackHelper.secondarySweepParticle, client.player);
+            if (FluidCombatHelper.secondarySweepParticle != null && client.player != null) {
+                FluidCombatHelper.updateSweepAttackParticle(FluidCombatHelper.secondarySweepParticle, client.player);
             }
         });
     }

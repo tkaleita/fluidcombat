@@ -1,8 +1,9 @@
 package focuss.fluidcombat.mixin.client;
 
 import focuss.fluidcombat.FluidCombat;
+import focuss.fluidcombat.config.ClientConfig;
 import focuss.fluidcombat.config.ServerConfig;
-import focuss.fluidcombat.helper.SweepAttackHelper;
+import focuss.fluidcombat.helper.FluidCombatHelper;
 import focuss.fluidcombat.mixin.client.accessor.LivingEntityAccessor;
 import focuss.fluidcombat.mixin.client.accessor.MultiPlayerGameModeAccessor;
 import focuss.fluidcombat.network.client.ServerboundBlockCritEffectsMessage;
@@ -57,7 +58,32 @@ abstract class MinecraftMixin {
     @Unique
     private float fluidCombat$damage;
     @Unique
-    private ItemStack fluidCombat$lastAttackStack = ItemStack.EMPTY;
+    ItemStack fluidCombat$lastAttackStack = ItemStack.EMPTY;
+    @Unique
+    private boolean fluidCombat$nextAttackOffhand = false;
+    @Unique
+    private int fluidCombat$lastAttackTick = 0;
+    @Unique
+    private ItemStack fluidCombat$lastHeldItem = ItemStack.EMPTY;
+    @Unique
+    private int fluidCombat$lastHotbarSlot = -1;
+
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void fluidcombat$resetAlternatingAttacks(CallbackInfo ci) {
+        if (player == null || player.tickCount % 5 == 0) return;
+
+        ItemStack current = player.getMainHandItem();
+        int currentSlot = player.getInventory().selected;
+
+        // 3 ways: reset through timeout, item in main hand changed, or selected hotbar slot changed
+        if (player.tickCount - fluidCombat$lastAttackTick > 40
+                || !ItemStack.isSameItem(current, fluidCombat$lastHeldItem)
+                || currentSlot != fluidCombat$lastHotbarSlot) {
+            fluidCombat$nextAttackOffhand = false;
+        }
+        fluidCombat$lastHeldItem = current.copy();
+        fluidCombat$lastHotbarSlot = player.getInventory().selected;
+    }
 
     @Inject(method = "continueAttack", at = @At(value = "HEAD"), cancellable = true)//, target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;stopDestroyBlock()V", shift = At.Shift.BEFORE))
     private void continueAttack(boolean attacking, CallbackInfo callback) {
@@ -116,6 +142,8 @@ abstract class MinecraftMixin {
     private void fluidCombat$offhandAttack(CallbackInfo ci) {
         if (player == null || level == null) return;
         if (!fluidCombat$isWeapon(EquipmentSlot.OFFHAND)) return;
+        // disable right click when we can alternate attacks. only left click is needed then
+        if (fluidcombat$canAlternate()) return;
 
         // if we can interact with the block were targeting, dont attack and interact instead
         HitResult hit = Minecraft.getInstance().hitResult;
@@ -154,8 +182,23 @@ abstract class MinecraftMixin {
         LivingEntityAccessor accessor = (LivingEntityAccessor) player;
         int ticker = accessor.fluidcombat$getAttackStrengthTicker();
         ItemStack last = fluidCombat$lastAttackStack;
-        float cooldown = fluidCombat$getCooldownTicks(player, last);
+        float cooldown = FluidCombatHelper.getCooldownTicks(player, last);
         return ticker >= cooldown;
+    }
+
+    @Unique
+    private boolean fluidcombat$canAlternate() {
+        if (!FluidCombat.CONFIG.get(ClientConfig.class).alternatingAttacks) return false;
+
+        ItemStack main = player.getMainHandItem();
+        ItemStack off  = player.getOffhandItem();
+
+        if (main.isEmpty() || off.isEmpty()) return false;
+        if (!fluidCombat$isWeapon(EquipmentSlot.MAINHAND)) return false;
+        if (!fluidCombat$isWeapon(EquipmentSlot.OFFHAND)) return false;
+        if (FluidCombat.CONFIG.get(ClientConfig.class).unrestrictedAlternatingAttacks) return true;
+
+        return ItemStack.isSameItem(main, off);
     }
 
     @Unique
@@ -165,41 +208,21 @@ abstract class MinecraftMixin {
             return;
         }
 
+        if (fluidcombat$canAlternate()) {
+            slot = fluidCombat$nextAttackOffhand ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND;
+            fluidCombat$nextAttackOffhand = !fluidCombat$nextAttackOffhand;
+        }
+
+        FluidCombatHelper.lastUsedSlot = slot;
         fluidCombat$lastAttackStack = player.getItemBySlot(slot).copy();
         LivingEntityAccessor accessor = (LivingEntityAccessor) player;
         accessor.fluidcombat$setAttackStrengthTicker(0);
 
         //FluidCombat.LOGGER.info("calculated CD: {}", fluidCombat$getCooldownTicks(player, fluidCombat$lastAttackStack));
-
+        fluidCombat$lastAttackTick = player.tickCount;
         fluidCombat$triggerSweep(slot);
         if (damageBlock)
             fluidCombat$damageBlock(slot, Minecraft.getInstance().hitResult);
-    }
-
-    @Unique
-    private float fluidCombat$getCooldownTicks(LocalPlayer player, ItemStack stack) {
-        if (stack == null) return 0;
-
-        var attributes = player.getAttributes();
-
-        ItemStack main = player.getMainHandItem();
-
-        var mainMods = main.getAttributeModifiers(EquipmentSlot.MAINHAND);
-        var stackMods = stack.getAttributeModifiers(EquipmentSlot.MAINHAND);
-
-        try {
-            attributes.removeAttributeModifiers(mainMods);
-            attributes.addTransientAttributeModifiers(stackMods);
-
-            double attackSpeed = player.getAttributeValue(Attributes.ATTACK_SPEED);
-            if (attackSpeed <= 0) attackSpeed = 0.1;
-
-            return (float)(20.0 / attackSpeed);
-
-        } finally {
-            attributes.removeAttributeModifiers(stackMods);
-            attributes.addTransientAttributeModifiers(mainMods);
-        }
     }
 
     @Unique
@@ -241,15 +264,15 @@ abstract class MinecraftMixin {
 
         // determine how much damage this hit deals
         float hardness = state.getDestroySpeed(level, pos);
-        if (hardness <= 0) return;
+        if (hardness <= -1) return;
         float damagePerTick = speed / hardness / 40f; // maybe add correct tool scaling to this instead of a flat number.
-        float cooldownTicks = fluidCombat$getCooldownTicks(player, stack);
+        float cooldownTicks = FluidCombatHelper.getCooldownTicks(player, stack);
         float damage = (damagePerTick * cooldownTicks)*1.01f; // just a lil buff for cases like 0.333
         //FluidCombat.LOGGER.info(String.valueOf(damage));
         if (player.isCreative())
             damage = 100;
         // are we critting? if so, increase damage and spawn crit sfx
-        if (SweepAttackHelper.isPlayerCritting(player)) {
+        if (FluidCombatHelper.isPlayerCritting(player)) {
             damage *= 1.5f;
             FluidCombat.NETWORK.sendToServer(new ServerboundBlockCritEffectsMessage(pos.getX(), pos.getY(), pos.getZ()));
         }
@@ -333,8 +356,8 @@ abstract class MinecraftMixin {
     private void fluidCombat$triggerSweep(EquipmentSlot slot) {
         // check damage of current item
         if (fluidCombat$isWeapon(slot)) { // do all effects if current item has damage attribute!
-            float damage = SweepAttackHelper.getItemAttackDamage(player.getItemBySlot(slot));
-            SweepAttackHelper.spawnSweepAttackEffects(player, level, slot, damage, (int)fluidCombat$getCooldownTicks(player, player.getItemBySlot(slot)));
+            float damage = FluidCombatHelper.getItemAttackDamage(player.getItemBySlot(slot));
+            FluidCombatHelper.spawnSweepAttackEffects(player, level, slot, damage, (int) FluidCombatHelper.getCooldownTicks(player, player.getItemBySlot(slot)));
         } else {
             // play a small, quieter version of the sound
             float pitch = 2f + RandomSource.create().nextFloat() * 0.1F; // random pitch +-0.1f i think

@@ -3,14 +3,14 @@ package focuss.fluidcombat.mixin;
 import focuss.fluidcombat.FluidCombat;
 import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.helper.GuardStanceHelper;
-import focuss.fluidcombat.helper.SweepAttackHelper;
+import focuss.fluidcombat.helper.FluidCombatHelper;
 import focuss.fluidcombat.mixin.client.accessor.LivingEntityAccessor;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -24,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Player.class)
 abstract class PlayerMixin extends LivingEntity {
     @Unique
-    private boolean fluidcombat$sprintsDuringAttack;
+    private boolean fluidCombat$sprintsDuringAttack;
 
     protected PlayerMixin(EntityType<? extends LivingEntity> entityType, Level level) {
         super(entityType, level);
@@ -37,6 +37,19 @@ abstract class PlayerMixin extends LivingEntity {
         }
     }
 
+    @Inject(method = "getAttackStrengthScale", at = @At("HEAD"), cancellable = true)
+    private void fluidcombat$customCooldown(float partialTicks, CallbackInfoReturnable<Float> cir) {
+        Player player = (Player)(Object)this;
+
+        int ticker = ((LivingEntityAccessor)player).fluidcombat$getAttackStrengthTicker();
+        float cooldown = FluidCombatHelper.currentMaxCooldownTicks;
+        //FluidCombat.LOGGER.info("cooldown: {}", cooldown);
+
+        float scale = Mth.clamp((ticker + partialTicks) / cooldown, 0.0F, 1.0F);
+
+        cir.setReturnValue(scale);
+    }
+
     @Inject(method = "hurt", at = @At(value = "RETURN", ordinal = 0), slice = @Slice(from = @At(value = "INVOKE", target = "Lnet/minecraft/world/damagesource/DamageSource;scalesWithDifficulty()Z")), cancellable = true)
     public void hurt(DamageSource source, float amount, CallbackInfoReturnable<Boolean> callback) {
         if (!FluidCombat.CONFIG.get(ServerConfig.class).weakAttacksKnockBackPlayers) return;
@@ -47,7 +60,7 @@ abstract class PlayerMixin extends LivingEntity {
 
     @Inject(method = "attack", at = @At("HEAD"))
     public void attack$0(Entity target, CallbackInfo callback) {
-        this.fluidcombat$sprintsDuringAttack = this.isSprinting();
+        this.fluidCombat$sprintsDuringAttack = this.isSprinting();
     }
 
     @Inject(method = "attack", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;playSound(Lnet/minecraft/world/entity/player/Player;DDDLnet/minecraft/sounds/SoundEvent;Lnet/minecraft/sounds/SoundSource;FF)V", ordinal = 0, shift = At.Shift.AFTER))
@@ -63,7 +76,7 @@ abstract class PlayerMixin extends LivingEntity {
     @Inject(method = "attack", at = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/player/Player;walkDist:F"))
     public void attack$2(Entity target, CallbackInfo callback) {
         // reset to original sprinting value for rest of attack method
-        if (this.fluidcombat$sprintsDuringAttack) this.setSharedFlag(3, true);
+        if (this.fluidCombat$sprintsDuringAttack) this.setSharedFlag(3, true);
     }
 
     @Inject(method = "attack", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;setSprinting(Z)V", shift = At.Shift.AFTER))
@@ -71,9 +84,9 @@ abstract class PlayerMixin extends LivingEntity {
         // don't disable sprinting when attacking a target
         // this is mainly nice to have since you always stop to swim when attacking creatures underwater
         if (FluidCombat.CONFIG.get(ServerConfig.class).sprintAttacks) {
-            if (this.fluidcombat$sprintsDuringAttack) this.setSprinting(true);
+            if (this.fluidCombat$sprintsDuringAttack) this.setSprinting(true);
         }
-        this.fluidcombat$sprintsDuringAttack = false;
+        this.fluidCombat$sprintsDuringAttack = false;
     }
 
     @ModifyVariable(method = "attack", at = @At("LOAD"), ordinal = 3, slice = @Slice(to = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;sweepAttack()V")))

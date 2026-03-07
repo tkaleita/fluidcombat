@@ -1,6 +1,5 @@
 -some mod compatibility? like crit chance from spartan weaponry
 -improve tube particle look (it fuckin SUCKS)
--add alternating attacks when holding left-click
 -add extra damage scaling? alongside knockback scaling? for easy balancing?
 -add upswing? like for 25%, or 50% of the attack CD, hand moves slightly "up", then trigger attack. might feel better? idk
 -add cooldown indicator that displays correct cooldown
@@ -8,9 +7,7 @@
 -disable autoattack when not holding weapon in creative?
 -...multiplayer support...
 -separate attack and mining CDs
--make sweep particle speed scale with attack speed
+-improve config. add more options
 
 BUGS:
--mining fatigue isnt considered
--haste 3 and above removes swing animation
 -breaking block gives dip animation

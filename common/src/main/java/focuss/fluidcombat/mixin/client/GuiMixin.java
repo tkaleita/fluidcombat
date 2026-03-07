@@ -12,7 +12,7 @@ public abstract class GuiMixin {
 
     @Inject(method = "renderCrosshair", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;getAttackStrengthScale(F)F"), cancellable = true)
     private void fluidcombat$disableAttackIndicator(GuiGraphics guiGraphics, CallbackInfo ci) {
-        ci.cancel();
+        //ci.cancel();
     }
 
 }

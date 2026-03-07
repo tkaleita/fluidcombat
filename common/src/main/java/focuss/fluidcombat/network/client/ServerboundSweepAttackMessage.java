@@ -1,6 +1,6 @@
 package focuss.fluidcombat.network.client;
 
-import focuss.fluidcombat.helper.SweepAttackHelper;
+import focuss.fluidcombat.helper.FluidCombatHelper;
 import fuzs.puzzleslib.api.network.v3.ServerMessageListener;
 import fuzs.puzzleslib.api.network.v3.ServerboundMessage;
 import net.minecraft.server.MinecraftServer;
@@ -20,7 +20,7 @@ public record ServerboundSweepAttackMessage(boolean usingSecondaryAction, Equipm
                 // mimics behavior of ServerboundInteractPacket as that one is used in combat tests
                 player.setShiftKeyDown(message.usingSecondaryAction);
                 if (player.gameMode.getGameModeForPlayer() != GameType.SPECTATOR) {
-                    SweepAttackHelper.initiateSweepAttack(player, slot);
+                    FluidCombatHelper.initiateSweepAttack(player, slot);
                 }
             }
         };

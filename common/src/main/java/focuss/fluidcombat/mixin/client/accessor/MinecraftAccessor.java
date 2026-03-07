@@ -1,7 +1,9 @@
 package focuss.fluidcombat.mixin.client.accessor;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(Minecraft.class)
@@ -12,4 +14,5 @@ public interface MinecraftAccessor {
 
     @Invoker("startAttack")
     boolean fluidcombat$startAttack();
+
 }

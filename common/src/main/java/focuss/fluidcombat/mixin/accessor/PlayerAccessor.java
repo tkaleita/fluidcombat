@@ -13,4 +13,5 @@ public interface PlayerAccessor {
 
     @Accessor("lastItemInMainHand")
     void fluidcombat$setLastItemInMainHand(ItemStack lastItemInMainHand);
+
 }

@@ -1,10 +1,10 @@
 package focuss.fluidcombat.client;
 
 import focuss.fluidcombat.FluidCombat;
+import focuss.fluidcombat.helper.FluidCombatHelper;
 import focuss.fluidcombat.particles.CustomSweepParticleProvider;
 import focuss.fluidcombat.particles.CustomSweepReverseParticleProvider;
 import focuss.fluidcombat.particles.ModParticlesForge;
-import focuss.fluidcombat.helper.SweepAttackHelper;
 import fuzs.puzzleslib.api.client.core.v1.ClientModConstructor;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
@@ -29,7 +29,7 @@ public class FluidCombatForgeClient {
         ClientModConstructor.construct(FluidCombat.MOD_ID, FluidCombatClient::new);
 
         event.enqueueWork(() -> {
-            SweepAttackHelper.initParticles(
+            FluidCombatHelper.initParticles(
                 ModParticlesForge.CUSTOM_SWEEP.get(),
                 ModParticlesForge.CUSTOM_SWEEP_REVERSE.get()
                 );
@@ -41,15 +41,15 @@ public class FluidCombatForgeClient {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
 
-            if (SweepAttackHelper.sweepParticle != null) {
-                SweepAttackHelper.updateSweepAttackParticle(
-                    SweepAttackHelper.sweepParticle,
+            if (FluidCombatHelper.sweepParticle != null) {
+                FluidCombatHelper.updateSweepAttackParticle(
+                    FluidCombatHelper.sweepParticle,
                     mc.player
                 );
             }
-            if (SweepAttackHelper.secondarySweepParticle != null) {
-                SweepAttackHelper.updateSweepAttackParticle(
-                    SweepAttackHelper.secondarySweepParticle,
+            if (FluidCombatHelper.secondarySweepParticle != null) {
+                FluidCombatHelper.updateSweepAttackParticle(
+                    FluidCombatHelper.secondarySweepParticle,
                     mc.player
                 );
             }
