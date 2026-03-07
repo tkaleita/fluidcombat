@@ -19,6 +19,7 @@
     "client": [
         "client.LivingEntityMixin",
         "client.MinecraftMixin",
+        "client.MultiPlayerGameModeMixin",
         "client.ItemInHandRendererMixin",
         "client.accessor.MultiPlayerGameModeAccessor",
         "client.accessor.MinecraftAccessor",

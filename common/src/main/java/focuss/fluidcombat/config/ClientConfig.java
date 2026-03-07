@@ -12,4 +12,6 @@ public class ClientConfig implements ConfigCore {
     public boolean showSweepTubeParticles = true;
     @Config(description = "Show sweep attack particle on each attack.")
     public boolean showSweepAttackParticles = true;
+    @Config(description = "Use alternate swing animation.")
+    public boolean alternateSwingAnimation = true;
 }

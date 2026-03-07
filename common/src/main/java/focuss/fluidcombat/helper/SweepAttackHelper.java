@@ -61,26 +61,53 @@ public class SweepAttackHelper {
     public static double minSweep = 0.25;
     public static double maxSweep = 2;
 
-    public static void initiateSweepAttack(Player player) {
-        if (!canSweepAttack(player)) return;
+    public static void initiateSweepAttack(Player player, EquipmentSlot slot) {
+        if (!canSweepAttack(player, slot)) return;
+        if (slot == EquipmentSlot.MAINHAND)
+            FluidCombat.LOGGER.info("MAINHAND ATTACK WITH: {}", player.getItemBySlot(slot).getDisplayName());
+        else if (slot == EquipmentSlot.OFFHAND)
+            FluidCombat.LOGGER.info("OFFHAND ATTACK WITH: {}", player.getItemBySlot(slot).getDisplayName());
 
+        // client side reference
         var target = Minecraft.getInstance().crosshairPickEntity;
-        float attackDamage = (float) player.getAttribute(Attributes.ATTACK_DAMAGE).getValue();
-        if (attackDamage > 0.0F) {
+
+        // get damage
+        ItemStack weapon = player.getItemBySlot(slot);
+        double damage = player.getAttributeBaseValue(Attributes.ATTACK_DAMAGE);
+        // apply weapon modifiers
+        Multimap<Attribute, AttributeModifier> modifiers =
+                weapon.getAttributeModifiers(EquipmentSlot.MAINHAND);
+        for (AttributeModifier mod : modifiers.get(Attributes.ATTACK_DAMAGE)) {
+            switch (mod.getOperation()) {
+                case ADDITION -> damage += mod.getAmount();
+                case MULTIPLY_BASE -> damage += damage * mod.getAmount();
+                case MULTIPLY_TOTAL -> damage *= (1 + mod.getAmount());
+            }
+        }
+        float attackDamage = (float) damage;
+        FluidCombat.LOGGER.info("calculated damage: {}", attackDamage);
+
+        // manually trigger attack if offhand
+        if (slot == EquipmentSlot.OFFHAND && target instanceof LivingEntity) {
+            DamageSource source = player.damageSources().playerAttack(player);
+            player.level().getEntity(target.getId()).hurt(source, attackDamage);
+        }
+
+        if (attackDamage > 1f) {
             double reach = player.getAttributeValue(CommonAbstractions.INSTANCE.getAttackRangeAttribute());
             var list = getEntitiesInSweepCone(player, reach);
             if (FluidCombat.CONFIG.get(ClientConfig.class).showSweepTubeParticles)
                 drawSweepTube(player, reach);
-            sweepAttack(player, list, attackDamage, target);
+            sweepAttack(player, list, attackDamage, slot, target);
         }
         // also resets attack ticker
-        player.swing(InteractionHand.MAIN_HAND);
+        player.swing(slot == EquipmentSlot.MAINHAND ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
     }
     
-    private static void sweepAttack(Player player, List<Entity> list, float attackDamage, @Nullable Entity target) {
-        float sweepingLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SWEEPING_EDGE, player.getMainHandItem());
+    private static void sweepAttack(Player player, List<Entity> list, float baseDamage, EquipmentSlot slot, @Nullable Entity target) {
+        FluidCombat.LOGGER.info("sweepAttack with: {}", player.getItemBySlot(slot));
+        float sweepingLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SWEEPING_EDGE, player.getItemBySlot(slot));
 
-        float baseDamage = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE);
         float sweepingAttackDamage = baseDamage * (0.1f+(sweepingLevel*0.1f));
         DamageSource damageSource = player.damageSources().playerAttack(player);
 
@@ -143,7 +170,7 @@ public class SweepAttackHelper {
         sweep = normal;
         sweepReverse = reverse;
     }
-    public static void spawnSweepAttackEffects(Player player, Level level) {
+    public static void spawnSweepAttackEffects(Player player, Level level, EquipmentSlot slot) {
         // prepare for playing sweep sound
         float minDamage = 1.0f;
         float maxDamage = 10.0f;
@@ -176,6 +203,7 @@ public class SweepAttackHelper {
         // reverse or normal?
         var chosenSweep = Math.random() > 0.5f ? sweep : sweepReverse;
 
+        // TODO adjust particle for mainhand vs. offhand
         // actually spawn sweep attack particle
         sweepParticle = pe.createParticle(chosenSweep,
             player.position().x(), // spawn it inside player first, so lighting matches up
@@ -184,7 +212,7 @@ public class SweepAttackHelper {
             0.0, 0.0, 0.0);
 
         // if weapon has fire aspect, make it ORANGE
-        ItemStack stack = player.getMainHandItem();
+        ItemStack stack = player.getItemBySlot(slot);
         int fireAspectLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FIRE_ASPECT, stack);
         if (fireAspectLevel > 0) {
             // spawn a smaller secondary particle!!
@@ -402,8 +430,8 @@ public class SweepAttackHelper {
         return sidewaysAdjusted;
     }
 
-    public static boolean canSweepAttack(Player player) {
-        ItemStack stack = player.getMainHandItem();
+    public static boolean canSweepAttack(Player player, EquipmentSlot slot) {
+        ItemStack stack = player.getItemBySlot(slot);
         if (stack.isEmpty()) return false;
 
         Multimap<Attribute, AttributeModifier> modifiers = stack.getAttributeModifiers(EquipmentSlot.MAINHAND);
@@ -413,11 +441,11 @@ public class SweepAttackHelper {
     }
 
     // currently unused...
-    public static void previewSweepTargets(Player player) {
+    public static void previewSweepTargets(Player player, EquipmentSlot slot) {
         Level level = player.level();
         if (level == null) return;
 
-        if (!canSweepAttack(player)) return;
+        if (!canSweepAttack(player, slot)) return;
 
         // only show preview when attack is almost ready
         //if (player.getAttackStrengthScale(0) < 0.9f) return;

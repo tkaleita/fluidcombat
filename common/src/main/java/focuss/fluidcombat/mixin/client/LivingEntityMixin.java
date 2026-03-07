@@ -1,14 +1,18 @@
 package focuss.fluidcombat.mixin.client;
 
 import focuss.fluidcombat.FluidCombat;
+import focuss.fluidcombat.config.ClientConfig;
 import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.helper.GuardStanceHelper;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.Fluid;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -25,11 +29,13 @@ abstract class LivingEntityMixin extends Entity {
 
     @Inject(method = "getAttackAnim", at = @At("TAIL"), cancellable = true)
     public void getAttackAnim(float tickDelta, CallbackInfoReturnable<Float> callback) {
-        // alternative swing animation, fully disabled for now
-        /*final float swingProgress = callback.getReturnValueF();
+        // alternative swing animation
+        if (!FluidCombat.CONFIG.get(ClientConfig.class).alternateSwingAnimation) return;
+        final float swingProgress = callback.getReturnValueF();
         if (swingProgress > 0.4F && swingProgress < 0.95F) {
             callback.setReturnValue(0.4F + 0.6F * (float) Math.pow((swingProgress - 0.4F) / 0.6F, 4.0));
-        }*/
+        }
+        callback.cancel();
     }
 
     @Inject(method = "isBlocking", at = @At("HEAD"), cancellable = true)
@@ -41,22 +47,12 @@ abstract class LivingEntityMixin extends Entity {
         }
     }
 
-    @ModifyArg(
-        method = "knockback", 
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/world/phys/Vec3;scale(D)Lnet/minecraft/world/phys/Vec3;"
-        ),
-        index = 0
-    )
+    @ModifyArg(method = "knockback", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/Vec3;scale(D)Lnet/minecraft/world/phys/Vec3;"), index = 0)
     private double onScaleKnockback(double originalStrength) {
         return originalStrength * FluidCombat.CONFIG.get(ServerConfig.class).entityKnockbackScale;
     }
 
-    @ModifyConstant(
-        method = "knockback",
-        constant = @Constant(doubleValue = 0.4D)
-    )
+    @ModifyConstant(method = "knockback", constant = @Constant(doubleValue = 0.4D))
     private double tweakVerticalKnockback(double original) {
         // return original * 0.5D; // for half lift
         return 0.25d;             // for zero lift

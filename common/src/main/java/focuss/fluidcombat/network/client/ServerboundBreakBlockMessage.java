@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public record ServerboundBreakBlockMessage(int x, int y, int z)
+public record ServerboundBreakBlockMessage(EquipmentSlot slot, int x, int y, int z)
         implements ServerboundMessage<ServerboundBreakBlockMessage> {
 
     @Override
@@ -37,16 +37,18 @@ public record ServerboundBreakBlockMessage(int x, int y, int z)
 
                 if (state.getDestroySpeed(level, pos) < 0) return;
 
+                // block breaking effects
                 level.levelEvent(2001, pos, Block.getId(state));
-                boolean drop = player.hasCorrectToolForDrops(state);
+
+                ItemStack stack = player.getItemBySlot(message.slot());
+                boolean drop = stack.isCorrectToolForDrops(state);
                 if (drop) {
                     state.getBlock().playerDestroy(level, player, pos, state, blockEntity, player.getMainHandItem());
                 }
                 level.removeBlock(pos, false);
 
                 // give tools damage!
-                ItemStack stack = player.getMainHandItem();
-                stack.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND));
+                stack.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(message.slot()));
             }
         };
     }

@@ -7,9 +7,10 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.level.GameType;
 
-public record ServerboundSweepAttackMessage(boolean usingSecondaryAction) implements ServerboundMessage<ServerboundSweepAttackMessage> {
+public record ServerboundSweepAttackMessage(boolean usingSecondaryAction, EquipmentSlot slot) implements ServerboundMessage<ServerboundSweepAttackMessage> {
 
     @Override
     public ServerMessageListener<ServerboundSweepAttackMessage> getHandler() {
@@ -19,7 +20,7 @@ public record ServerboundSweepAttackMessage(boolean usingSecondaryAction) implem
                 // mimics behavior of ServerboundInteractPacket as that one is used in combat tests
                 player.setShiftKeyDown(message.usingSecondaryAction);
                 if (player.gameMode.getGameModeForPlayer() != GameType.SPECTATOR) {
-                    SweepAttackHelper.initiateSweepAttack(player);
+                    SweepAttackHelper.initiateSweepAttack(player, slot);
                 }
             }
         };
