@@ -44,15 +44,13 @@ public class FluidCombatForgeClient {
             if (SweepAttackHelper.sweepParticle != null) {
                 SweepAttackHelper.updateSweepAttackParticle(
                     SweepAttackHelper.sweepParticle,
-                    mc.player,
-                    mc.level
+                    mc.player
                 );
             }
             if (SweepAttackHelper.secondarySweepParticle != null) {
                 SweepAttackHelper.updateSweepAttackParticle(
                     SweepAttackHelper.secondarySweepParticle,
-                    mc.player,
-                    mc.level
+                    mc.player
                 );
             }
 

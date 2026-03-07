@@ -4,6 +4,7 @@ import focuss.fluidcombat.config.ClientConfig;
 import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.handler.ClassicCombatHandler;
 import focuss.fluidcombat.handler.CombatTestHandler;
+import focuss.fluidcombat.network.client.ServerboundBlockCritEffectsMessage;
 import focuss.fluidcombat.network.client.ServerboundBreakBlockMessage;
 import focuss.fluidcombat.network.client.ServerboundSweepAttackMessage;
 import focuss.fluidcombat.network.client.ServerboundSwingArmMessage;
@@ -29,7 +30,8 @@ public class FluidCombat implements ModConstructor {
     public static final NetworkHandlerV3 NETWORK = NetworkHandlerV3.builder(MOD_ID)
             .registerServerbound(ServerboundSweepAttackMessage.class)
             .registerServerbound(ServerboundSwingArmMessage.class)
-            .registerServerbound(ServerboundBreakBlockMessage.class);
+            .registerServerbound(ServerboundBreakBlockMessage.class)
+            .registerServerbound(ServerboundBlockCritEffectsMessage.class);
 
     public static final ConfigHolder CONFIG = ConfigHolder.builder(MOD_ID).client(ClientConfig.class).server(ServerConfig.class);
 

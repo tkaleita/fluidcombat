@@ -1,20 +1,16 @@
 package focuss.fluidcombat.helper;
 
-import focuss.fluidcombat.Constants;
 import focuss.fluidcombat.FluidCombat;
 import focuss.fluidcombat.config.ClientConfig;
 import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.core.CommonAbstractions;
 import focuss.fluidcombat.particles.CustomSweepParticle;
-import focuss.fluidcombat.particles.ModParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -44,7 +40,6 @@ import org.joml.Math;
 import org.joml.Vector3f;
 
 import com.google.common.collect.Multimap;
-import org.spongepowered.asm.mixin.Unique;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -61,6 +56,8 @@ public class SweepAttackHelper {
 
     public static double minSweep = 0.25;
     public static double maxSweep = 2;
+
+    public static EquipmentSlot lastUsedSlot = EquipmentSlot.MAINHAND;
 
     public static void initiateSweepAttack(Player player, EquipmentSlot slot) {
         if (!canSweepAttack(player, slot)) return;
@@ -106,7 +103,12 @@ public class SweepAttackHelper {
         // also resets attack ticker
         player.swing(slot == EquipmentSlot.MAINHAND ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
     }
-    
+
+    public static boolean isPlayerCritting(Player player) {
+        // TODO extra case for config "crits while sprinting
+        return !player.onGround() && player.getDeltaMovement().y < -0.15 && !player.isInWater() && !player.isPassenger();
+    }
+
     private static void sweepAttack(Player player, List<Entity> list, float baseDamage, EquipmentSlot slot, @Nullable Entity target) {
         //FluidCombat.LOGGER.info("sweepAttack with: {}", player.getItemBySlot(slot));
         float sweepingLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SWEEPING_EDGE, player.getItemBySlot(slot));
@@ -115,7 +117,6 @@ public class SweepAttackHelper {
         DamageSource damageSource = player.damageSources().playerAttack(player);
 
         for (Entity entity : list) {
-            var isCrit = !player.onGround() && player.getDeltaMovement().y < -0.15; // its a crit if player is falling... downwards
 
             if (target != null && entity.getUUID().equals(target.getUUID())) {
                 continue;
@@ -129,7 +130,7 @@ public class SweepAttackHelper {
             }
 
             var sound = SoundEvents.PLAYER_ATTACK_WEAK;
-            if (isCrit) {
+            if (isPlayerCritting(player)) {
                 sound = SoundEvents.PLAYER_ATTACK_STRONG;
                 enchantedSweepDamage *= 1.5;
                 if (player.level() instanceof ServerLevel serverLevel)
@@ -204,13 +205,14 @@ public class SweepAttackHelper {
         ParticleEngine pe = mc.particleEngine;
 
         // reverse or normal?
-        var chosenSweep = Math.random() > 0.5f ? sweep : sweepReverse;
+        //var chosenSweep = Math.random() > 0.5f ? sweep : sweepReverse;
+        var chosenSweep = (slot == EquipmentSlot.MAINHAND) ? sweep : sweepReverse;
+        lastUsedSlot = slot;
 
-        // TODO adjust particle for mainhand vs. offhand
         // actually spawn sweep attack particle
         sweepParticle = pe.createParticle(chosenSweep,
             player.position().x(), // spawn it inside player first, so lighting matches up
-            player.position().y(), // otherwise, particle can spawn inside blocks, making it look too dark
+            player.position().y()+player.getBbHeight()/2, // otherwise, particle can spawn inside blocks, making it look too dark
             player.position().z(),
             0.0, 0.0, 0.0);
 
@@ -405,9 +407,11 @@ public class SweepAttackHelper {
         }
     }
 
-    public static boolean updateSweepAttackParticle(Particle sweepParticle, Player player, Level level) {
-        if (sweepParticle == null) return false;
-        
+    public static void updateSweepAttackParticle(Particle sweepParticle, Player player) {
+        if (sweepParticle == null) return;
+
+        float sidewaysOffset = (lastUsedSlot == EquipmentSlot.MAINHAND) ? SweepAttackHelper.sidewaysOffset : -SweepAttackHelper.sidewaysOffset;
+
         Vec3 newPos = null;
         if (sweepParticle == secondarySweepParticle) {
             newPos = getSweepAttackPosition(player, forwardOffset-0.05f, downwardOffset, sidewaysOffset);
@@ -415,7 +419,6 @@ public class SweepAttackHelper {
             newPos = getSweepAttackPosition(player, forwardOffset, downwardOffset, sidewaysOffset);
         }
         sweepParticle.setPos(newPos.x(), newPos.y(), newPos.z());
-        return true;
     }
 
     public static Vec3 getSweepAttackPosition(Player player, double forwardOffset, double downwardOffset, double sidewaysOffset) {

@@ -1,11 +1,11 @@
 package focuss.fluidcombat.mixin.client;
 
 import focuss.fluidcombat.FluidCombat;
-import focuss.fluidcombat.client.handler.AutoAttackHandler;
 import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.helper.SweepAttackHelper;
 import focuss.fluidcombat.mixin.client.accessor.LivingEntityAccessor;
 import focuss.fluidcombat.mixin.client.accessor.MultiPlayerGameModeAccessor;
+import focuss.fluidcombat.network.client.ServerboundBlockCritEffectsMessage;
 import focuss.fluidcombat.network.client.ServerboundBreakBlockMessage;
 import focuss.fluidcombat.network.client.ServerboundSweepAttackMessage;
 import net.minecraft.client.Minecraft;
@@ -52,8 +52,6 @@ abstract class MinecraftMixin {
     private boolean startAttack() {
         throw new RuntimeException();
     }
-    @Unique
-    boolean fluidCombat$wasCharged = false;
     @Unique
     private BlockPos fluidCombat$damagePos;
     @Unique
@@ -224,6 +222,10 @@ abstract class MinecraftMixin {
             speed = player.getDestroySpeed(state);
             player.setItemSlot(EquipmentSlot.MAINHAND, original);
         }
+        // undo vanilla mining in air penalty
+        if (!player.onGround()) {
+            speed *= 5.0F;
+        }
 
         // reset progress if we changed block
         if (!pos.equals(fluidCombat$damagePos)) {
@@ -240,6 +242,11 @@ abstract class MinecraftMixin {
         //FluidCombat.LOGGER.info(String.valueOf(damage));
         if (player.isCreative())
             damage = 100;
+        // are we critting? if so, increase damage and spawn crit sfx
+        if (SweepAttackHelper.isPlayerCritting(player)) {
+            damage *= 1.5f;
+            FluidCombat.NETWORK.sendToServer(new ServerboundBlockCritEffectsMessage(pos.getX(), pos.getY(), pos.getZ()));
+        }
         fluidCombat$damage += damage;
 
         // cooldown advance for strong tools
@@ -261,7 +268,7 @@ abstract class MinecraftMixin {
             LivingEntityAccessor accessor = (LivingEntityAccessor)player;
             int ticker = accessor.fluidcombat$getAttackStrengthTicker();
             ticker = Math.min(ticker + (int)cooldownAdvance, (int)cooldownTicks);
-            accessor.fluidcombat$setAttackStrengthTicker(ticker);
+            //accessor.fluidcombat$setAttackStrengthTicker(ticker);
             //FluidCombat.LOGGER.info(String.valueOf(ticker));
             if (player.isCreative())
                 accessor.fluidcombat$setAttackStrengthTicker(100);
@@ -269,7 +276,16 @@ abstract class MinecraftMixin {
             //FluidCombat.LOGGER.info("smooth CD advance: {}", cooldownAdvance);
         }
 
-        // play sound
+        // play block hit sound
+        if (damage >= 0.5f) {
+            // strong hit
+            level.playSound(player, pos, SoundEvents.PLAYER_ATTACK_STRONG, SoundSource.PLAYERS, 0.35F, 0.9F + level.random.nextFloat() * 0.2F);
+        } else {
+            // weak hit
+            level.playSound(player, pos, SoundEvents.PLAYER_ATTACK_WEAK, SoundSource.PLAYERS, 0.35F, 1.0F + level.random.nextFloat() * 0.2F);
+        }
+
+        // play block mining sound
         SoundType sound = state.getSoundType();
         level.playLocalSound(
                 pos.getX() + 0.5,

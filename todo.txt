@@ -1,13 +1,12 @@
 -some mod compatibility? like crit chance from spartan weaponry
 -improve tube particle look (it fuckin SUCKS)
 -fully recreate right click being a normal attack (maybe there is a workaround to let minecraft handle this)
--crits do extra damage to blocks?
 -add alternating attacks when holding left-click
--remove mining penalty when in air. keep it for underwater though!
 -add extra damage scaling? alongside knockback scaling? for easy balancing?
--make sweep particle dependent on offhand vs mainhand
 -add upswing? like for 25%, or 50% of the attack CD, hand moves slightly "up", then trigger attack. might feel better? idk
 -add cooldown indicator that displays correct cooldown
 -fire aspect can set blocks on fire?
--make mining cancel attack cooldown?
--> does this mean separate attack and mining CDs?
+-disable autoattack when not holding weapon in creative?
+-...multiplayer support...
+
+-separate attack and mining CDs
