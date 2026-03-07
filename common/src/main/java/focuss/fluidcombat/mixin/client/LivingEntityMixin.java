@@ -38,6 +38,14 @@ abstract class LivingEntityMixin extends Entity {
         callback.cancel();
     }
 
+    @Inject(method = "getCurrentSwingDuration", at = @At("RETURN"), cancellable = true)
+    private void minSwingDuration(CallbackInfoReturnable<Integer> cir) {
+        int duration = cir.getReturnValue();
+        if (duration < 2) {
+            cir.setReturnValue(2);
+        }
+    }
+
     @Inject(method = "isBlocking", at = @At("HEAD"), cancellable = true)
     private void fakeBlockingForGuardStance(CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof Player player) {

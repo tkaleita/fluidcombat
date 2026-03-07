@@ -37,7 +37,7 @@ public record ServerboundBlockCritEffectsMessage(int x, int y, int z) implements
                         pos,
                         SoundEvents.PLAYER_ATTACK_CRIT,
                         SoundSource.PLAYERS,
-                        0.8F,
+                        0.4F,
                         0.9F + random.nextFloat() * 0.2F
                 );
 

@@ -4,6 +4,7 @@ import focuss.fluidcombat.FluidCombat;
 import focuss.fluidcombat.config.ClientConfig;
 import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.core.CommonAbstractions;
+import focuss.fluidcombat.mixin.client.accessor.LivingEntityAccessor;
 import focuss.fluidcombat.particles.CustomSweepParticle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
@@ -44,6 +45,7 @@ import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Vector;
 
 public class SweepAttackHelper {
 
@@ -89,8 +91,7 @@ public class SweepAttackHelper {
 
         // manually trigger attack if offhand
         if (slot == EquipmentSlot.OFFHAND && target instanceof LivingEntity) {
-            DamageSource source = player.damageSources().playerAttack(player);
-            player.level().getEntity(target.getId()).hurt(source, attackDamage);
+            performOffhandAttack(player, player.level().getEntity(target.getId()));
         }
 
         if (attackDamage > 1f) {
@@ -102,6 +103,37 @@ public class SweepAttackHelper {
         }
         // also resets attack ticker
         player.swing(slot == EquipmentSlot.MAINHAND ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
+    }
+
+    public static void performOffhandAttack(Player player, Entity target) {
+        LivingEntityAccessor accessor = (LivingEntityAccessor) player;
+
+        ItemStack main = player.getMainHandItem();
+        ItemStack off = player.getOffhandItem();
+        var attributes = player.getAttributes();
+        var mainMods = main.getAttributeModifiers(EquipmentSlot.MAINHAND);
+        var offMods = off.getAttributeModifiers(EquipmentSlot.MAINHAND);
+        int originalTicker = accessor.fluidcombat$getAttackStrengthTicker();
+
+        try {
+            // swap attribute modifiers
+            attributes.removeAttributeModifiers(mainMods);
+            attributes.addTransientAttributeModifiers(offMods);
+            // swap visible weapon for enchantments / durability logic
+            player.setItemSlot(EquipmentSlot.MAINHAND, off);
+            // ensure full cooldown
+            accessor.fluidcombat$setAttackStrengthTicker(100);
+            // run vanilla attack
+            player.attack(target);
+
+        } finally {
+            // restore attributes
+            attributes.removeAttributeModifiers(offMods);
+            attributes.addTransientAttributeModifiers(mainMods);
+            // restore weapon
+            player.setItemSlot(EquipmentSlot.MAINHAND, main);
+            accessor.fluidcombat$setAttackStrengthTicker(originalTicker);
+        }
     }
 
     public static boolean isPlayerCritting(Player player) {
@@ -135,7 +167,7 @@ public class SweepAttackHelper {
                 enchantedSweepDamage *= 1.5;
                 if (player.level() instanceof ServerLevel serverLevel)
                     serverLevel.sendParticles(ParticleTypes.CRIT, entity.getX(), entity.getY() + 1.0, entity.getZ(), 5, 0, 0, 0, 1);
-            } 
+            }
             
             var deltaMovement = entity.getDeltaMovement(); // get current velocity to reset after hurt
             entity.hurt(damageSource, enchantedSweepDamage);
@@ -169,25 +201,42 @@ public class SweepAttackHelper {
         }
     }
 
+    /// this is an estimation and copies vanilla minecraft logic. dont use for actual combat!
+    public static float getItemAttackDamage(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return 1f; // fist
+        }
+        double modifier = 0.0;
+        var mods = stack.getAttributeModifiers(EquipmentSlot.MAINHAND)
+                .get(Attributes.ATTACK_DAMAGE);
+        for (var mod : mods) {
+            if (mod.getOperation() == AttributeModifier.Operation.ADDITION) {
+                modifier += mod.getAmount();
+            }
+        }
+        return (float)(1.0 + modifier);
+    }
+
     private static SimpleParticleType sweep, sweepReverse;
     public static void initParticles(SimpleParticleType normal, SimpleParticleType reverse) {
         sweep = normal;
         sweepReverse = reverse;
     }
-    public static void spawnSweepAttackEffects(Player player, Level level, EquipmentSlot slot) {
+    public static void spawnSweepAttackEffects(Player player, Level level, EquipmentSlot slot, float damage, int lifetime) {
         // prepare for playing sweep sound
         float minDamage = 1.0f;
         float maxDamage = 10.0f;
-        float attackDamage = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE);
-        float normalizedDamage = Mth.clamp((attackDamage - minDamage) / (maxDamage - minDamage), 0f, 1f);
+        float normalizedDamage = Mth.clamp((damage - minDamage) / (maxDamage - minDamage), 0f, 1f);
 
         float maxPitch = 1f; // weak weapon
         float minPitch = 0.25f; // heavy weapon
         float weaponPitch = Mth.lerp(normalizedDamage, maxPitch, minPitch);
 
+        lifetime /= 4; // cause otherwise. very slow
+
         // play sweep attack sound
         float pitch = weaponPitch + RandomSource.create().nextFloat() * 0.1F; // Random pitch between 0.65 and 0.85
-        //FluidCombat.LOGGER.info(String.valueOf(pitch));
+        FluidCombat.LOGGER.info("damage: {} | pitch: {}", damage, pitch);
         level.playSound(
                 player,
                 player.getX(),
@@ -216,6 +265,11 @@ public class SweepAttackHelper {
             player.position().z(),
             0.0, 0.0, 0.0);
 
+        if (sweepParticle != null) {
+            sweepParticle.setColor(0.75f, 0.75f, 0.75f);
+            sweepParticle.setLifetime(lifetime);
+        }
+
         // if weapon has fire aspect, make it ORANGE
         ItemStack stack = player.getItemBySlot(slot);
         int fireAspectLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FIRE_ASPECT, stack);
@@ -228,6 +282,8 @@ public class SweepAttackHelper {
             0.0, 0.0, 0.0);
             secondarySweepParticle.scale(0.75f);
             secondarySweepParticle.setColor(1.0f, 0.4f, 0.1f); // fiery orange
+            sweepParticle.setLifetime(lifetime);
+
         }
 
         // if crit is possible, turn particle red

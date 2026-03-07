@@ -173,27 +173,33 @@ abstract class MinecraftMixin {
 
         fluidCombat$triggerSweep(slot);
         if (damageBlock)
-            fluidCombat$damageBlock(slot, (BlockHitResult)Minecraft.getInstance().hitResult);
+            fluidCombat$damageBlock(slot, Minecraft.getInstance().hitResult);
     }
 
     @Unique
     private float fluidCombat$getCooldownTicks(LocalPlayer player, ItemStack stack) {
         if (stack == null) return 0;
 
-        double attackSpeed = player.getAttribute(Attributes.ATTACK_SPEED).getBaseValue();
-        var modifiers = stack.getAttributeModifiers(EquipmentSlot.MAINHAND)
-                .get(Attributes.ATTACK_SPEED);
-        if (modifiers != null) {
-            for (var mod : modifiers) {
-                switch (mod.getOperation()) {
-                    case ADDITION -> attackSpeed += mod.getAmount();
-                    case MULTIPLY_BASE -> attackSpeed += mod.getAmount() * attackSpeed;
-                    case MULTIPLY_TOTAL -> attackSpeed *= (1 + mod.getAmount());
-                }
-            }
+        var attributes = player.getAttributes();
+
+        ItemStack main = player.getMainHandItem();
+
+        var mainMods = main.getAttributeModifiers(EquipmentSlot.MAINHAND);
+        var stackMods = stack.getAttributeModifiers(EquipmentSlot.MAINHAND);
+
+        try {
+            attributes.removeAttributeModifiers(mainMods);
+            attributes.addTransientAttributeModifiers(stackMods);
+
+            double attackSpeed = player.getAttributeValue(Attributes.ATTACK_SPEED);
+            if (attackSpeed <= 0) attackSpeed = 0.1;
+
+            return (float)(20.0 / attackSpeed);
+
+        } finally {
+            attributes.removeAttributeModifiers(stackMods);
+            attributes.addTransientAttributeModifiers(mainMods);
         }
-        if (attackSpeed <= 0) attackSpeed = 0.1;
-        return (float)(20.0 / attackSpeed);
     }
 
     @Unique
@@ -203,11 +209,11 @@ abstract class MinecraftMixin {
     }
 
     @Unique
-    private void fluidCombat$damageBlock(EquipmentSlot slot, BlockHitResult hit) {
+    private void fluidCombat$damageBlock(EquipmentSlot slot, HitResult hit) {
         if (this.gameMode == null || this.level == null || hit == null || hit.getType() != HitResult.Type.BLOCK) return;
         //FluidCombat.LOGGER.info("damageBlock with: {}", player.getItemBySlot(slot));
 
-        BlockPos pos = hit.getBlockPos();
+        BlockPos pos = ((BlockHitResult) hit).getBlockPos();
         BlockState state = level.getBlockState(pos);
 
         // determine destroy speed & cooldown using the correct stack
@@ -327,7 +333,8 @@ abstract class MinecraftMixin {
     private void fluidCombat$triggerSweep(EquipmentSlot slot) {
         // check damage of current item
         if (fluidCombat$isWeapon(slot)) { // do all effects if current item has damage attribute!
-            SweepAttackHelper.spawnSweepAttackEffects(player, level, slot);
+            float damage = SweepAttackHelper.getItemAttackDamage(player.getItemBySlot(slot));
+            SweepAttackHelper.spawnSweepAttackEffects(player, level, slot, damage, (int)fluidCombat$getCooldownTicks(player, player.getItemBySlot(slot)));
         } else {
             // play a small, quieter version of the sound
             float pitch = 2f + RandomSource.create().nextFloat() * 0.1F; // random pitch +-0.1f i think
