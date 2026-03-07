@@ -59,7 +59,7 @@ abstract class MinecraftMixin {
     @Unique
     private float fluidCombat$damage;
     @Unique
-    private ItemStack fluidCombat$lastAttackStack;
+    private ItemStack fluidCombat$lastAttackStack = ItemStack.EMPTY;
 
     @Inject(method = "continueAttack", at = @At(value = "HEAD"), cancellable = true)//, target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;stopDestroyBlock()V", shift = At.Shift.BEFORE))
     private void continueAttack(boolean attacking, CallbackInfo callback) {
@@ -72,7 +72,7 @@ abstract class MinecraftMixin {
         HitResult hit = Minecraft.getInstance().hitResult;
         if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
             // we are trying to mine a block!
-            if (attacking && !this.player.isUsingItem() && AutoAttackHandler.readyForAutoAttack(this.player)) {
+            if (attacking && !this.player.isUsingItem() && fluidCombat$canAttack()) {
                 //FluidCombat.LOGGER.info("damageBlock from continueAttack");
                 fluidCombat$triggerAttack(EquipmentSlot.MAINHAND, true);
             }
@@ -81,7 +81,7 @@ abstract class MinecraftMixin {
         }
 
         if (attacking && !this.player.isUsingItem() && (hit == null || hit.getType() != HitResult.Type.BLOCK)) {
-            if (AutoAttackHandler.readyForAutoAttack(this.player)) {
+            if (fluidCombat$canAttack()) {
                 this.startAttack();
             }
         }
@@ -91,19 +91,17 @@ abstract class MinecraftMixin {
     private void startAttackHead(CallbackInfoReturnable<Boolean> cir) {
         //FluidCombat.LOGGER.info("startAttackHead");
 
-        fluidCombat$wasCharged = player.getAttackStrengthScale(0.5F) >= 1.0F;
         HitResult hit = Minecraft.getInstance().hitResult;
-
         if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
             // we are trying to mine a block! cancel!! (unless continueAttack is disabled)
-            if (fluidCombat$wasCharged && !FluidCombat.CONFIG.get(ServerConfig.class).holdAttackButton) {
+            if (fluidCombat$canAttack() && !FluidCombat.CONFIG.get(ServerConfig.class).holdAttackButton) {
                 fluidCombat$triggerAttack(EquipmentSlot.MAINHAND, true);
             }
             cir.setReturnValue(false);
             return;
         }
 
-        if (!fluidCombat$wasCharged) {
+        if (!fluidCombat$canAttack()) {
             // block the vanilla attack altogether
             cir.setReturnValue(false);
         }
@@ -147,7 +145,7 @@ abstract class MinecraftMixin {
 
     @Unique
     private void fluidCombat$triggerAttack(EquipmentSlot slot, boolean damageBlock) {
-        FluidCombat.LOGGER.info("can attack using new cd: {}", fluidCombat$canAttack());
+        //FluidCombat.LOGGER.info("can attack using new cd: {}", fluidCombat$canAttack());
         if (!fluidCombat$canAttack()) {
             return;
         }
@@ -156,7 +154,7 @@ abstract class MinecraftMixin {
         LivingEntityAccessor accessor = (LivingEntityAccessor) player;
         accessor.fluidcombat$setAttackStrengthTicker(0);
 
-        FluidCombat.LOGGER.info("calculated CD: {}", fluidCombat$getCooldownTicks(player, fluidCombat$lastAttackStack));
+        //FluidCombat.LOGGER.info("calculated CD: {}", fluidCombat$getCooldownTicks(player, fluidCombat$lastAttackStack));
 
         fluidCombat$triggerSweep(slot);
         if (damageBlock)
@@ -192,7 +190,7 @@ abstract class MinecraftMixin {
     @Unique
     private void fluidCombat$damageBlock(EquipmentSlot slot, BlockHitResult hit) {
         if (this.gameMode == null || this.level == null || hit == null || hit.getType() != HitResult.Type.BLOCK) return;
-        FluidCombat.LOGGER.info("damageBlock with: {}", player.getItemBySlot(slot));
+        //FluidCombat.LOGGER.info("damageBlock with: {}", player.getItemBySlot(slot));
 
         BlockPos pos = hit.getBlockPos();
         BlockState state = level.getBlockState(pos);
@@ -212,7 +210,7 @@ abstract class MinecraftMixin {
         float damagePerTick = speed / hardness / 40f; // maybe add correct tool scaling to this instead of a flat number.
         float cooldownTicks = player.getCurrentItemAttackStrengthDelay();
         float damage = (damagePerTick * cooldownTicks)*1.01f; // just a lil buff for cases like 0.333
-        FluidCombat.LOGGER.info(String.valueOf(damage));
+        //FluidCombat.LOGGER.info(String.valueOf(damage));
         if (player.isCreative())
             damage = 100;
         fluidCombat$damage += damage;
@@ -237,11 +235,11 @@ abstract class MinecraftMixin {
             int ticker = accessor.fluidcombat$getAttackStrengthTicker();
             ticker = Math.min(ticker + (int)cooldownAdvance, (int)cooldownTicks);
             accessor.fluidcombat$setAttackStrengthTicker(ticker);
-            FluidCombat.LOGGER.info(String.valueOf(ticker));
+            //FluidCombat.LOGGER.info(String.valueOf(ticker));
             if (player.isCreative())
                 accessor.fluidcombat$setAttackStrengthTicker(100);
 
-            FluidCombat.LOGGER.info("smooth CD advance: {}", cooldownAdvance);
+            //FluidCombat.LOGGER.info("smooth CD advance: {}", cooldownAdvance);
         }
 
         // play sound

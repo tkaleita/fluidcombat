@@ -44,6 +44,7 @@ import org.joml.Math;
 import org.joml.Vector3f;
 
 import com.google.common.collect.Multimap;
+import org.spongepowered.asm.mixin.Unique;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -63,10 +64,12 @@ public class SweepAttackHelper {
 
     public static void initiateSweepAttack(Player player, EquipmentSlot slot) {
         if (!canSweepAttack(player, slot)) return;
+        /*
         if (slot == EquipmentSlot.MAINHAND)
             FluidCombat.LOGGER.info("MAINHAND ATTACK WITH: {}", player.getItemBySlot(slot).getDisplayName());
         else if (slot == EquipmentSlot.OFFHAND)
             FluidCombat.LOGGER.info("OFFHAND ATTACK WITH: {}", player.getItemBySlot(slot).getDisplayName());
+         */
 
         // client side reference
         var target = Minecraft.getInstance().crosshairPickEntity;
@@ -85,7 +88,7 @@ public class SweepAttackHelper {
             }
         }
         float attackDamage = (float) damage;
-        FluidCombat.LOGGER.info("calculated damage: {}", attackDamage);
+        //FluidCombat.LOGGER.info("calculated damage: {}", attackDamage);
 
         // manually trigger attack if offhand
         if (slot == EquipmentSlot.OFFHAND && target instanceof LivingEntity) {
@@ -105,7 +108,7 @@ public class SweepAttackHelper {
     }
     
     private static void sweepAttack(Player player, List<Entity> list, float baseDamage, EquipmentSlot slot, @Nullable Entity target) {
-        FluidCombat.LOGGER.info("sweepAttack with: {}", player.getItemBySlot(slot));
+        //FluidCombat.LOGGER.info("sweepAttack with: {}", player.getItemBySlot(slot));
         float sweepingLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SWEEPING_EDGE, player.getItemBySlot(slot));
 
         float sweepingAttackDamage = baseDamage * (0.1f+(sweepingLevel*0.1f));
@@ -183,7 +186,7 @@ public class SweepAttackHelper {
 
         // play sweep attack sound
         float pitch = weaponPitch + RandomSource.create().nextFloat() * 0.1F; // Random pitch between 0.65 and 0.85
-        FluidCombat.LOGGER.info(String.valueOf(pitch));
+        //FluidCombat.LOGGER.info(String.valueOf(pitch));
         level.playSound(
                 player,
                 player.getX(),

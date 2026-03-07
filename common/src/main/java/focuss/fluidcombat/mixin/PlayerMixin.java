@@ -4,6 +4,7 @@ import focuss.fluidcombat.FluidCombat;
 import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.helper.GuardStanceHelper;
 import focuss.fluidcombat.mixin.client.accessor.LivingEntityAccessor;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;

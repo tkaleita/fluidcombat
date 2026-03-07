@@ -11,8 +11,8 @@
 -add upswing? like for 25%, or 50% of the attack CD, hand moves slightly "up", then trigger attack. might feel better? idk
 
 BUGS:
--hands dont drop items when destroying blocks?
 -make right click available when block has an interaction
+-destroying blocks with hand drops nothin
 -efficiency currently doesnt work
 -right click triggers swing animation even with no right click use
 -> this means you cant use offhand items like shields.

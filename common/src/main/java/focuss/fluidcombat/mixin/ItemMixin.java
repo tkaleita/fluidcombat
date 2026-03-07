@@ -1,5 +1,7 @@
 package focuss.fluidcombat.mixin;
 
+import focuss.fluidcombat.FluidCombat;
+import focuss.fluidcombat.config.ServerConfig;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -25,13 +27,13 @@ public class ItemMixin {
 
     @Inject(method = "use", at = @At("HEAD"), cancellable = true)
     private void tryBlockWithWeapon(Level level, Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResultHolder<ItemStack>> cir) {
+        if (!FluidCombat.CONFIG.get(ServerConfig.class).enableWeaponGuarding) return;
         if (inGuardSetup) return;
         if (!GuardStanceHelper.canUseGuardStance(player) || GuardStanceHelper.isGuarding(player)) return;
 
         inGuardSetup = true;
         try {
             GuardStanceHelper.startGuarding(player);
-
             MultiPlayerGameMode gm = Minecraft.getInstance().gameMode;
             gm.useItem(player, hand);       // server handshake
             player.startUsingItem(hand);    // client animation & use-timer
@@ -45,7 +47,6 @@ public class ItemMixin {
     private void onGetUseAnimation(ItemStack stack, CallbackInfoReturnable<UseAnim> cir) {
         Player player = Minecraft.getInstance().player;
 
-        // Quick null & context sanity check
         if (player != null && player.getMainHandItem() == stack) {
             if (GuardStanceHelper.canUseGuardStance(player)) {
                 cir.setReturnValue(UseAnim.BLOCK);

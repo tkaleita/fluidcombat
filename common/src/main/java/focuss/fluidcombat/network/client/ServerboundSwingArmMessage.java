@@ -1,5 +1,6 @@
 package focuss.fluidcombat.network.client;
 
+import focuss.fluidcombat.FluidCombat;
 import fuzs.puzzleslib.api.network.v3.ServerMessageListener;
 import fuzs.puzzleslib.api.network.v3.ServerboundMessage;
 import net.minecraft.server.MinecraftServer;
