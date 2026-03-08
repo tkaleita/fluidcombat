@@ -6,10 +6,10 @@ import focuss.fluidcombat.config.ServerConfig;
 import focuss.fluidcombat.core.CommonAbstractions;
 import focuss.fluidcombat.mixin.client.accessor.LivingEntityAccessor;
 import focuss.fluidcombat.particles.CustomSweepParticle;
+import focuss.fluidcombat.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
@@ -124,7 +124,7 @@ public class FluidCombatHelper {
             // swap visible weapon for enchantments / durability logic
             player.setItemSlot(EquipmentSlot.MAINHAND, off);
             // ensure full cooldown
-            accessor.fluidcombat$setAttackStrengthTicker(100);
+            accessor.fluidCombat$setAttackStrengthTicker(100);
             // run vanilla attack
             player.attack(target);
 
@@ -134,12 +134,19 @@ public class FluidCombatHelper {
             attributes.addTransientAttributeModifiers(mainMods);
             // restore weapon
             player.setItemSlot(EquipmentSlot.MAINHAND, main);
-            accessor.fluidcombat$setAttackStrengthTicker(originalTicker);
+            accessor.fluidCombat$setAttackStrengthTicker(originalTicker);
         }
     }
 
-    public static boolean isPlayerCritting(Player player) {
-        // TODO extra case for config "crits while sprinting
+    public static boolean isPlayerCritting(Player player, boolean blockAttack) {
+        // TODO extra case for config "crits while sprinting"
+        if (Services.PLATFORM.isCritModInstalled()) {
+            if (!blockAttack) {
+                return false; // normal crits handled by the crit mod
+            }
+            return Services.PLATFORM.isPlayerCritting(player); // block attack crit
+        }
+        // vanilla crit logic
         return !player.onGround() && player.getDeltaMovement().y < -0.15 && !player.isInWater() && !player.isPassenger();
     }
 
@@ -164,7 +171,7 @@ public class FluidCombatHelper {
             }
 
             var sound = SoundEvents.PLAYER_ATTACK_WEAK;
-            if (isPlayerCritting(player)) {
+            if (isPlayerCritting(player, false)) {
                 sound = SoundEvents.PLAYER_ATTACK_STRONG;
                 enchantedSweepDamage *= 1.5;
                 if (player.level() instanceof ServerLevel serverLevel)
@@ -316,7 +323,7 @@ public class FluidCombatHelper {
         }
 
         // if crit is possible, turn particle red
-        if (!player.onGround() && player.getDeltaMovement().y < -0.15) 
+        if (isPlayerCritting(player, false)) // false so its consistent with normal attacks in case we have a mod installed
             sweepParticle.setColor(0.6f, 0.1f, 0.1f);
 
         // set angle of particle
@@ -522,6 +529,8 @@ public class FluidCombatHelper {
     }
 
     public static boolean canSweepAttack(Player player, EquipmentSlot slot) {
+        if (!Services.PLATFORM.canUseItem(player, player.getItemBySlot(slot))) return false;
+
         ItemStack stack = player.getItemBySlot(slot);
         if (stack.isEmpty()) return false;
 

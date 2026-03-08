@@ -49,7 +49,11 @@ dependencies {
     compileOnly project(":common")
     compileOnly "org.jetbrains:annotations:24.0.1"
     annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
-    modImplementation "curse.maven:puzzles-lib-495476:6918565"}
+    modImplementation "curse.maven:puzzles-lib-495476:6918565"
+    compileOnly "curse.maven:justleveling-fork-1073400:6184015"
+    compileOnly "curse.maven:no-tree-punching-289043:4599926"
+    compileOnly "curse.maven:random-crits-903444:5335156"
+}
 
 jar {
     finalizedBy('reobfJar')

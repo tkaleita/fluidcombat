@@ -1,13 +1,9 @@
 package focuss.fluidcombat;
 
-import focuss.fluidcombat.FluidCombat;
 import focuss.fluidcombat.client.FluidCombatForgeClient;
-import focuss.fluidcombat.core.CommonAbstractions;
-import focuss.fluidcombat.core.ForgeAbstractions;
 import focuss.fluidcombat.particles.ModParticlesForge;
 import fuzs.puzzleslib.api.core.v1.ModConstructor;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLConstructModEvent;

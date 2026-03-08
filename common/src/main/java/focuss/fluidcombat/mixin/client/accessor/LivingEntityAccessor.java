@@ -1,9 +1,7 @@
 package focuss.fluidcombat.mixin.client.accessor;
 
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(LivingEntity.class)
@@ -13,5 +11,5 @@ public interface LivingEntityAccessor {
     int fluidcombat$getAttackStrengthTicker();
 
     @Accessor("attackStrengthTicker")
-    void fluidcombat$setAttackStrengthTicker(int value);
+    void fluidCombat$setAttackStrengthTicker(int value);
 }

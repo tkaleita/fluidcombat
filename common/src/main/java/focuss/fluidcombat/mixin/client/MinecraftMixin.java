@@ -9,6 +9,7 @@ import focuss.fluidcombat.mixin.client.accessor.MultiPlayerGameModeAccessor;
 import focuss.fluidcombat.network.client.ServerboundBlockCritEffectsMessage;
 import focuss.fluidcombat.network.client.ServerboundBreakBlockMessage;
 import focuss.fluidcombat.network.client.ServerboundSweepAttackMessage;
+import focuss.fluidcombat.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -23,6 +24,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -143,7 +145,7 @@ abstract class MinecraftMixin {
         if (player == null || level == null) return;
         if (!fluidCombat$isWeapon(EquipmentSlot.OFFHAND)) return;
         // disable right click when we can alternate attacks. only left click is needed then
-        if (fluidcombat$canAlternate()) return;
+        if (fluidCombat$canAlternate()) return;
 
         // if we can interact with the block were targeting, dont attack and interact instead
         HitResult hit = Minecraft.getInstance().hitResult;
@@ -187,7 +189,7 @@ abstract class MinecraftMixin {
     }
 
     @Unique
-    private boolean fluidcombat$canAlternate() {
+    private boolean fluidCombat$canAlternate() {
         if (!FluidCombat.CONFIG.get(ClientConfig.class).alternatingAttacks) return false;
 
         ItemStack main = player.getMainHandItem();
@@ -196,6 +198,7 @@ abstract class MinecraftMixin {
         if (main.isEmpty() || off.isEmpty()) return false;
         if (!fluidCombat$isWeapon(EquipmentSlot.MAINHAND)) return false;
         if (!fluidCombat$isWeapon(EquipmentSlot.OFFHAND)) return false;
+        if (!Services.PLATFORM.canUseItemClient(player, player.getItemBySlot(EquipmentSlot.OFFHAND))) return false;
         if (FluidCombat.CONFIG.get(ClientConfig.class).unrestrictedAlternatingAttacks) return true;
 
         return ItemStack.isSameItem(main, off);
@@ -207,16 +210,19 @@ abstract class MinecraftMixin {
         if (!fluidCombat$canAttack()) {
             return;
         }
-
-        if (fluidcombat$canAlternate()) {
+        if (fluidCombat$canAlternate()) {
             slot = fluidCombat$nextAttackOffhand ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND;
             fluidCombat$nextAttackOffhand = !fluidCombat$nextAttackOffhand;
+        }
+        // can we use this item? if leveling mods are installed
+        if (!Services.PLATFORM.canUseItemClient(player, player.getItemBySlot(slot))) {
+            return;
         }
 
         FluidCombatHelper.lastUsedSlot = slot;
         fluidCombat$lastAttackStack = player.getItemBySlot(slot).copy();
         LivingEntityAccessor accessor = (LivingEntityAccessor) player;
-        accessor.fluidcombat$setAttackStrengthTicker(0);
+        accessor.fluidCombat$setAttackStrengthTicker(0);
 
         //FluidCombat.LOGGER.info("calculated CD: {}", fluidCombat$getCooldownTicks(player, fluidCombat$lastAttackStack));
         fluidCombat$lastAttackTick = player.tickCount;
@@ -238,12 +244,13 @@ abstract class MinecraftMixin {
 
         BlockPos pos = ((BlockHitResult) hit).getBlockPos();
         BlockState state = level.getBlockState(pos);
+        ItemStack stack = player.getItemBySlot(slot);
 
         // determine destroy speed & cooldown using the correct stack
-        ItemStack stack = player.getItemBySlot(slot);
         float speed;
         if (slot == EquipmentSlot.MAINHAND) {
             speed = player.getDestroySpeed(state);
+            speed = Services.PLATFORM.modifyBreakSpeed(player, state, pos, speed);
         } else {
             ItemStack original = player.getMainHandItem();
 
@@ -262,48 +269,16 @@ abstract class MinecraftMixin {
             fluidCombat$damage = 0f;
         }
 
-        // determine how much damage this hit deals
-        float hardness = state.getDestroySpeed(level, pos);
-        if (hardness <= -1) return;
-        float damagePerTick = speed / hardness / 40f; // maybe add correct tool scaling to this instead of a flat number.
-        float cooldownTicks = FluidCombatHelper.getCooldownTicks(player, stack);
-        float damage = (damagePerTick * cooldownTicks)*1.01f; // just a lil buff for cases like 0.333
-        //FluidCombat.LOGGER.info(String.valueOf(damage));
-        if (player.isCreative())
-            damage = 100;
-        // are we critting? if so, increase damage and spawn crit sfx
-        if (FluidCombatHelper.isPlayerCritting(player)) {
-            damage *= 1.5f;
-            FluidCombat.NETWORK.sendToServer(new ServerboundBlockCritEffectsMessage(pos.getX(), pos.getY(), pos.getZ()));
-        }
+        // get damage
+        var damage = fluidCombat$calculateBlockDamage(slot, hit, speed);
         fluidCombat$damage += damage;
+        FluidCombat.LOGGER.info("damage: {}", damage);
 
-        // cooldown advance for strong tools
-        float swingsNeeded = (float)Math.ceil(1f / damage);
-        float excessPerSwing = (swingsNeeded * damage - 1f) / swingsNeeded;
-        if (excessPerSwing > 0f) {
-            float cooldownAdvance = excessPerSwing * cooldownTicks;
-
-            if (cooldownAdvance < 0f) cooldownAdvance = 0f;
-            if (cooldownAdvance > cooldownTicks) cooldownAdvance = cooldownTicks; // max cd
-
-            // cap it to max vanilla speed
-            float progressPerTick = speed / (hardness * 75f);
-            int vanillaTicksToBreak = (int)Math.ceil(1f / progressPerTick);
-            float maxAdvance = cooldownTicks - vanillaTicksToBreak;
-            if (maxAdvance < 0f) maxAdvance = 0f;
-            cooldownAdvance = Math.min(cooldownAdvance, maxAdvance);
-
-            LivingEntityAccessor accessor = (LivingEntityAccessor)player;
-            int ticker = accessor.fluidcombat$getAttackStrengthTicker();
-            ticker = Math.min(ticker + (int)cooldownAdvance, (int)cooldownTicks);
-            accessor.fluidcombat$setAttackStrengthTicker(ticker);
-            //FluidCombat.LOGGER.info(String.valueOf(ticker));
-            if (player.isCreative())
-                accessor.fluidcombat$setAttackStrengthTicker(100);
-
-            //FluidCombat.LOGGER.info("smooth CD advance: {}", cooldownAdvance);
-        }
+        // cd advance
+        LivingEntityAccessor accessor = (LivingEntityAccessor) player;
+        var cooldownAdvance = fluidCombat$calculateCooldownAdvance(player, slot, hit, damage, speed);
+        accessor.fluidCombat$setAttackStrengthTicker((int)cooldownAdvance);
+        FluidCombat.LOGGER.info("cooldown advance: {}", cooldownAdvance);
 
         // play block hit sound
         if (damage >= 0.5f) {
@@ -344,12 +319,91 @@ abstract class MinecraftMixin {
             double x = pos.getX() + level.random.nextDouble();
             double y = pos.getY() + level.random.nextDouble();
             double z = pos.getZ() + level.random.nextDouble();
-            level.addParticle(
-                    new BlockParticleOption(ParticleTypes.BLOCK, state),
-                    x, y, z,
-                    0.0, 0.0, 0.0
+            level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, state), x, y, z, 0.0, 0.0, 0.0
             );
         }
+    }
+
+    @Unique
+    private float fluidCombat$calculateBlockDamage(EquipmentSlot slot, HitResult hit, float speed) {
+        if (player.isCreative()) return 100;
+        BlockPos pos = ((BlockHitResult) hit).getBlockPos();
+        BlockState state = level.getBlockState(pos);
+        ItemStack stack = player.getItemBySlot(slot);
+
+        // determine how much damage this hit deals
+        boolean canMineBlock = Services.PLATFORM.canMineBlock(player, stack, state, pos);
+        float divisor = canMineBlock ? 30f : 100f;
+
+        float hardness = state.getDestroySpeed(level, pos);
+        if (hardness <= -1) return 0;
+        float damagePerTick = speed / hardness / divisor;
+        float cooldownTicks = FluidCombatHelper.getCooldownTicks(player, stack);
+        float damage = (damagePerTick * cooldownTicks)*1.01f; // just a lil buff for cases like 0.333
+        // are we critting? if so, increase damage and spawn crit sfx
+        if (FluidCombatHelper.isPlayerCritting(player, true)) {
+            damage *= 1.5f;
+            FluidCombat.NETWORK.sendToServer(new ServerboundBlockCritEffectsMessage(pos.getX(), pos.getY(), pos.getZ()));
+        }
+        return damage;
+    }
+
+    @Unique
+    private float fluidCombat$calculateCooldownAdvance(Player player, EquipmentSlot slot, HitResult hit, float damage, float speed) {
+        ItemStack stack = player.getItemBySlot(slot);
+        float cooldownTicks = FluidCombatHelper.getCooldownTicks(player, stack);
+
+        if (player.isCreative()) return cooldownTicks-4; // n tick delay between destroying blocks when in creative
+
+        BlockPos pos = ((BlockHitResult) hit).getBlockPos();
+        BlockState state = level.getBlockState(pos);
+
+        // determine how many swings the block should take
+        float swingsNeeded = (float) Math.ceil(1f / damage);
+
+        // how much damage the last swing overshoots
+        float totalDamage = swingsNeeded * damage;
+        float excessDamage = totalDamage - 1f;
+
+        if (excessDamage <= 0f) return 0f;
+
+        // distribute excess across swings
+        float excessPerSwing = excessDamage / totalDamage;
+
+        // convert excess damage into cooldown ticks
+        float cooldownAdvance = excessPerSwing * cooldownTicks * 0.9f; // small nerf to make it harder to hit cap
+
+        // clamp to reasonable bounds
+        cooldownAdvance = Mth.clamp(cooldownAdvance, 0f, cooldownTicks);
+
+        // ensure we never exceed vanilla break speed
+        float hardness = state.getDestroySpeed(level, pos);
+        if (hardness > 0f) {
+            boolean correctTool = Services.PLATFORM.canMineBlock(player, stack, state, pos);
+
+            // replicating vanilla calculation so we use normal divisor
+            float divisor = correctTool ? 30f : 100f;
+            float progressPerTick = speed / hardness / divisor;
+            int vanillaTicksToBreak = (int) Math.ceil(1f / progressPerTick);
+
+            // insta mine soft gate
+            vanillaTicksToBreak = Math.max(vanillaTicksToBreak, 2); // clamp to 2 to account for minecraft vanilla mining cooldown
+
+            float maxAdvance = cooldownTicks - vanillaTicksToBreak;
+            if (maxAdvance < 0f) maxAdvance = cooldownTicks - maxAdvance;
+
+            cooldownAdvance = Math.min(cooldownAdvance, maxAdvance);
+        } else if (hardness == 0.0f) {
+            // 0 hardness block, like grass, flower, torch, crops, etc
+            return cooldownTicks-5; // 5 cooldown for 0 hardness blocks
+        }
+
+        FluidCombat.LOGGER.info(String.valueOf(cooldownAdvance));
+        cooldownAdvance = (float) Math.round(cooldownAdvance);
+        FluidCombat.LOGGER.info(String.valueOf(cooldownAdvance));
+
+        LivingEntityAccessor accessor = (LivingEntityAccessor) player;
+        return Math.min(accessor.fluidcombat$getAttackStrengthTicker() + (int) cooldownAdvance, (int) cooldownTicks);
     }
 
     @Unique

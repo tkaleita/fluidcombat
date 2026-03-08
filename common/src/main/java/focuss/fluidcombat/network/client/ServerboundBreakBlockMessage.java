@@ -1,5 +1,7 @@
 package focuss.fluidcombat.network.client;
 
+import focuss.fluidcombat.FluidCombat;
+import focuss.fluidcombat.platform.Services;
 import fuzs.puzzleslib.api.network.v3.ServerMessageListener;
 import fuzs.puzzleslib.api.network.v3.ServerboundMessage;
 import net.minecraft.core.BlockPos;
@@ -35,13 +37,14 @@ public record ServerboundBreakBlockMessage(EquipmentSlot slot, int x, int y, int
                 BlockState state = level.getBlockState(pos);
                 BlockEntity blockEntity = level.getBlockEntity(pos);
 
-                if (state.getDestroySpeed(level, pos) < 0) return;
+                if (!player.isCreative() && state.getDestroySpeed(level, pos) < 0) return;
 
                 // block breaking effects
                 level.levelEvent(2001, pos, Block.getId(state));
 
                 ItemStack stack = player.getItemBySlot(message.slot());
-                boolean drop = !state.requiresCorrectToolForDrops() || stack.isCorrectToolForDrops(state);
+                var drop = Services.PLATFORM.canMineBlock(player, stack, state, pos);
+                FluidCombat.LOGGER.info("canMineBlock: {}", drop);
                 if (drop) {
                     state.getBlock().playerDestroy(level, player, pos, state, blockEntity, stack);
                 }

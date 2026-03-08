@@ -1,13 +1,17 @@
--some mod compatibility? like crit chance from spartan weaponry
+PLANNED FEATURES:
 -improve tube particle look (it fuckin SUCKS)
 -add extra damage scaling? alongside knockback scaling? for easy balancing?
 -add upswing? like for 25%, or 50% of the attack CD, hand moves slightly "up", then trigger attack. might feel better? idk
--add cooldown indicator that displays correct cooldown
 -fire aspect can set blocks on fire?
--disable autoattack when not holding weapon in creative?
 -...multiplayer support...
 -separate attack and mining CDs
 -improve config. add more options
 
 BUGS:
 -breaking block gives dip animation
+-axes too good? too good in general?
+
+COMPATIBILITY:
+-just leveling (triggers swing anim even when item is unusable)
+-dynamic trees
+-locks

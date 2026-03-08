@@ -1,5 +1,12 @@
 package focuss.fluidcombat.platform.services;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+import org.jetbrains.annotations.Nullable;
+
 public interface IPlatformHelper {
 
     /**
@@ -33,4 +40,19 @@ public interface IPlatformHelper {
 
         return isDevelopmentEnvironment() ? "development" : "production";
     }
+
+    boolean canUseItemClient(Player player, ItemStack stack);
+
+    boolean canUseItem(Player player, ItemStack stack);
+
+    boolean canMineBlock(Player player, ItemStack stack, BlockState state, @Nullable BlockPos pos);
+
+    float modifyBreakSpeed(Player player, BlockState state, @Nullable BlockPos pos, float speed);
+
+    boolean isPlayerCritting(Player player);
+
+    void playCritEffects(ServerLevel level, BlockPos pos);
+
+    boolean isCritModInstalled();
+
 }
