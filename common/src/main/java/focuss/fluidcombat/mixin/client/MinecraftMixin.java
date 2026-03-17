@@ -69,6 +69,8 @@ abstract class MinecraftMixin {
     private ItemStack fluidCombat$lastHeldItem = ItemStack.EMPTY;
     @Unique
     private int fluidCombat$lastHotbarSlot = -1;
+    @Unique
+    private final int fluidCombat$maxMiningCd = 5;
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void fluidcombat$resetAlternatingAttacks(CallbackInfo ci) {
@@ -338,7 +340,8 @@ abstract class MinecraftMixin {
         float hardness = state.getDestroySpeed(level, pos);
         if (hardness <= -1) return 0;
         float damagePerTick = speed / hardness / divisor;
-        float cooldownTicks = FluidCombatHelper.getCooldownTicks(player, stack);
+        float realCooldown = FluidCombatHelper.getCooldownTicks(player, stack);
+        float cooldownTicks = Math.min(realCooldown, fluidCombat$maxMiningCd); // clamp to maxMiningCd
         float damage = (damagePerTick * cooldownTicks)*1.01f; // just a lil buff for cases like 0.333
         // are we critting? if so, increase damage and spawn crit sfx
         if (FluidCombatHelper.isPlayerCritting(player, true)) {
@@ -351,7 +354,8 @@ abstract class MinecraftMixin {
     @Unique
     private float fluidCombat$calculateCooldownAdvance(Player player, EquipmentSlot slot, HitResult hit, float damage, float speed) {
         ItemStack stack = player.getItemBySlot(slot);
-        float cooldownTicks = FluidCombatHelper.getCooldownTicks(player, stack);
+        float realCooldown = FluidCombatHelper.getCooldownTicks(player, stack);
+        float cooldownTicks = Math.min(realCooldown, fluidCombat$maxMiningCd); // clamp to maxMiningCd
 
         if (player.isCreative()) return cooldownTicks-4; // n tick delay between destroying blocks when in creative
 
@@ -387,7 +391,7 @@ abstract class MinecraftMixin {
             int vanillaTicksToBreak = (int) Math.ceil(1f / progressPerTick);
 
             // insta mine soft gate
-            vanillaTicksToBreak = Math.max(vanillaTicksToBreak, 2); // clamp to 2 to account for minecraft vanilla mining cooldown
+            vanillaTicksToBreak = Math.max(vanillaTicksToBreak, 1); // clamp to 2 to account for minecraft vanilla mining cooldown
 
             float maxAdvance = cooldownTicks - vanillaTicksToBreak;
             if (maxAdvance < 0f) maxAdvance = cooldownTicks - maxAdvance;
@@ -398,12 +402,13 @@ abstract class MinecraftMixin {
             return cooldownTicks-5; // 5 cooldown for 0 hardness blocks
         }
 
-        FluidCombat.LOGGER.info(String.valueOf(cooldownAdvance));
+        FluidCombat.LOGGER.info("cooldownAdvance before rounding: {}", cooldownAdvance);
         cooldownAdvance = (float) Math.round(cooldownAdvance);
-        FluidCombat.LOGGER.info(String.valueOf(cooldownAdvance));
+        FluidCombat.LOGGER.info("cooldownAdvance after rounding: {}", cooldownAdvance);
 
         LivingEntityAccessor accessor = (LivingEntityAccessor) player;
-        return Math.min(accessor.fluidcombat$getAttackStrengthTicker() + (int) cooldownAdvance, (int) cooldownTicks);
+        return realCooldown - 5 + cooldownAdvance;
+        //return Math.min(accessor.fluidcombat$getAttackStrengthTicker() + (int) cooldownAdvance, (int) cooldownTicks);
     }
 
     @Unique
